@@ -1,0 +1,39 @@
+# Maven
+/target/
+!.mvn/wrapper/maven-wrapper.jar
+
+# Logs
+*.log
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+out/
+
+# Eclipse
+*.classpath
+*.project
+*.settings/
+
+# VS Code
+.vscode/
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Entorno
+.env
+
+# Archivos de pruebas y cobertura
+*.exec
+jacoco.exec
+
+# Archivos generados por compiladores
+*.class
+
+# Archivos temporales
+*.swp
+*.swo
+
