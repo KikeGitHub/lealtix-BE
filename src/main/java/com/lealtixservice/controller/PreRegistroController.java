@@ -34,4 +34,34 @@ public class PreRegistroController {
             return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
         }
     }
+
+    @Operation(summary = "Eliminar pre-registro", description = "Elimina un pre-registro por id. Retorna 204 si se elimina, 404 si no existe.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "204", description = "Pre-registro eliminado exitosamente"),
+        @ApiResponse(responseCode = "404", description = "Pre-registro no encontrado")
+    })
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deletePreRegistro(@PathVariable Long id) {
+        try {
+            preRegistroService.deletePreRegistro(id);
+            return ResponseEntity.noContent().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        }
+    }
+
+    @Operation(summary = "Obtener pre-registro por email", description = "Retorna el pre-registro asociado al email. 404 si no existe.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Pre-registro encontrado"),
+        @ApiResponse(responseCode = "404", description = "Pre-registro no encontrado")
+    })
+    @GetMapping
+    public ResponseEntity<?> getPreRegistroByEmail(@RequestParam String email) {
+        PreRegistro preRegistro = preRegistroService.getPreRegistroByEmail(email);
+        if (preRegistro != null) {
+            return ResponseEntity.ok(preRegistro);
+        } else {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Pre-registro no encontrado");
+        }
+    }
 }
