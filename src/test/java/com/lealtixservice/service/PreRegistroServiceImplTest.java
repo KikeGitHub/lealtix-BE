@@ -1,15 +1,18 @@
 package com.lealtixservice.service;
 
+import com.lealtixservice.config.SendGridTemplates;
 import com.lealtixservice.dto.PreRegistroDTO;
 import com.lealtixservice.entity.PreRegistro;
 import com.lealtixservice.exception.EmailAlreadyRegisteredException;
 import com.lealtixservice.repository.PreRegistroRepository;
+import com.lealtixservice.service.impl.PreRegistroServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
@@ -17,16 +20,24 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-class PreRegistroServiceTest {
+class PreRegistroServiceImplTest {
     @Mock
     private PreRegistroRepository preRegistroRepository;
 
+    @Mock
+    private SendGridTemplates sendGridTemplates;
+
+    @Mock
+    private Emailservice emailservice;
+
     @InjectMocks
-    private PreRegistroService preRegistroService;
+    private PreRegistroServiceImpl preRegistroService;
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws IOException {
         MockitoAnnotations.openMocks(this);
+        when(sendGridTemplates.getPreRegistroTemplate()).thenReturn("TEMPLATE_ID");
+        doNothing().when(emailservice).sendEmailWithTemplate(any());
     }
 
     @Test
@@ -49,7 +60,7 @@ class PreRegistroServiceTest {
     }
 
     @Test
-    void register_savesPreRegistroIfEmailNotExists() {
+    void register_savesPreRegistroIfEmailNotExists() throws IOException {
         PreRegistroDTO dto = PreRegistroDTO.builder().email("nuevo@mail.com").nombre("Nuevo").build();
         when(preRegistroRepository.findByEmail("nuevo@mail.com")).thenReturn(Optional.empty());
         PreRegistro preRegistroMock = PreRegistro.builder()
@@ -64,4 +75,3 @@ class PreRegistroServiceTest {
         assertEquals("PENDING", result.getStatus());
     }
 }
-
