@@ -27,6 +27,7 @@ public class EmailServiceImpl implements Emailservice {
     @Value("${sendgrid.email.from}")
     private String emailFrom;
 
+
     public void sendEmail(String to, String subject, String body) throws IOException {
         Email from = new Email(emailFrom);
         Email recipient = new Email(to);
@@ -43,6 +44,7 @@ public class EmailServiceImpl implements Emailservice {
             log.info("Body: {}", response.getBody());
             log.info("Headers: {}", response.getHeaders());
         } catch (IOException ex) {
+            log.error("Error sending email", ex);
             throw ex;
         }
     }
@@ -54,6 +56,7 @@ public class EmailServiceImpl implements Emailservice {
 
         Personalization personalization = new Personalization();
         personalization.addTo(new Email(emailDTO.getTo()));
+        personalization.setSubject(emailDTO.getSubject());
 
         if (emailDTO.getDynamicData() != null) {
             emailDTO.getDynamicData().forEach(personalization::addDynamicTemplateData);

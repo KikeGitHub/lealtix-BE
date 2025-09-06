@@ -44,6 +44,7 @@ public class PreRegistroController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error enviando email de pre-registro");
         }
     }
+    
 
     @Operation(summary = "Eliminar pre-registro", description = "Elimina un pre-registro por id. Retorna 204 si se elimina, 404 si no existe.")
     @ApiResponses(value = {

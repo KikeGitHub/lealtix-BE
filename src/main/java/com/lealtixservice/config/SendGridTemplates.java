@@ -9,7 +9,6 @@ public class SendGridTemplates {
     @Value("${sendgrid.templates.pre-registro}")
     private String preRegistroTemplate;
 
-
     public String getPreRegistroTemplate() {
         return preRegistroTemplate;
     }

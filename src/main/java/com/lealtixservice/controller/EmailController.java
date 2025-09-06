@@ -19,6 +19,7 @@ public class EmailController {
     @Autowired
     private Emailservice emailService;
 
+
     @Operation(summary = "Envía un correo electrónico usando el EmailService")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Correo enviado exitosamente"),
