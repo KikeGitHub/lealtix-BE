@@ -12,6 +12,8 @@ import org.mockito.MockitoAnnotations;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
+import java.io.IOException;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -28,7 +30,7 @@ class PreRegistroControllerTest {
     }
 
     @Test
-    void crearPreRegistro_retorna201CuandoExito() {
+    void crearPreRegistro_retorna201CuandoExito() throws IOException {
         PreRegistroDTO dto = PreRegistroDTO.builder()
                 .nombre("Juan")
                 .email("juan@mail.com")
@@ -49,7 +51,7 @@ class PreRegistroControllerTest {
     }
 
     @Test
-    void crearPreRegistro_retorna409CuandoEmailYaRegistrado() {
+    void crearPreRegistro_retorna409CuandoEmailYaRegistrado() throws IOException {
         PreRegistroDTO dto = PreRegistroDTO.builder()
                 .nombre("Ana")
                 .email("ana@mail.com")

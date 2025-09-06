@@ -1,15 +1,18 @@
 package com.lealtixservice.service;
 
+import com.lealtixservice.config.SendGridTemplates;
 import com.lealtixservice.dto.PreRegistroDTO;
 import com.lealtixservice.entity.PreRegistro;
 import com.lealtixservice.exception.EmailAlreadyRegisteredException;
 import com.lealtixservice.repository.PreRegistroRepository;
+import com.lealtixservice.service.impl.PreRegistroServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
@@ -22,7 +25,13 @@ class PreRegistroServiceTest {
     private PreRegistroRepository preRegistroRepository;
 
     @InjectMocks
-    private PreRegistroService preRegistroService;
+    private PreRegistroServiceImpl preRegistroService;
+
+    @Mock
+    private SendGridTemplates sendGridTemplates;
+
+    @Mock
+    private Emailservice emailservice;
 
     @BeforeEach
     void setUp() {
@@ -49,7 +58,7 @@ class PreRegistroServiceTest {
     }
 
     @Test
-    void register_savesPreRegistroIfEmailNotExists() {
+    void register_savesPreRegistroIfEmailNotExists() throws IOException {
         PreRegistroDTO dto = PreRegistroDTO.builder().email("nuevo@mail.com").nombre("Nuevo").build();
         when(preRegistroRepository.findByEmail("nuevo@mail.com")).thenReturn(Optional.empty());
         PreRegistro preRegistroMock = PreRegistro.builder()

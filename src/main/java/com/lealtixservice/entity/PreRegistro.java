@@ -28,7 +28,5 @@ public class PreRegistro {
     @Column(nullable = false)
     private LocalDateTime fechaRegistro = LocalDateTime.now();
 
-    @OneToMany(mappedBy = "preRegistro", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Invitacion> invitaciones;
 }
 
