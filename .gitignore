@@ -38,4 +38,4 @@ jacoco.exec
 *.swo
 
 # Archivos con datos sensibles
-src/main/resources/application.properties
+src/environment.env
