@@ -7,8 +7,10 @@ import com.lealtixservice.entity.PreRegistro;
 import com.lealtixservice.exception.EmailAlreadyRegisteredException;
 import com.lealtixservice.repository.PreRegistroRepository;
 import com.lealtixservice.service.Emailservice;
+import com.lealtixservice.service.InvitationService;
 import com.lealtixservice.service.PreRegistroService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,8 +22,13 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class PreRegistroServiceImpl implements PreRegistroService {
 
+    @Autowired
     private final Emailservice emailservice;
+    @Autowired
+    private final InvitationService invitationService;
+    @Autowired
     private final SendGridTemplates sendGridTemplates;
+    @Autowired
     private final PreRegistroRepository preRegistroRepository;
 
     public boolean emailExists(String email) {
@@ -36,10 +43,12 @@ public class PreRegistroServiceImpl implements PreRegistroService {
         PreRegistro preRegistro = PreRegistro.builder()
                 .nombre(dto.getNombre())
                 .email(dto.getEmail())
-                .status("PENDING")
+                .status("INVITED")
                 .fechaRegistro(LocalDateTime.now())
                 .build();
         var response = preRegistroRepository.save(preRegistro);
+        // Generate Invitation
+        String link = invitationService.generateInvitation(dto,"lealtix.com");
         // Send PreRegister Email
         EmailDTO emailDTO = EmailDTO.builder()
                 .to(dto.getEmail())
@@ -47,6 +56,7 @@ public class PreRegistroServiceImpl implements PreRegistroService {
                 .templateId(sendGridTemplates.getPreRegistroTemplate())
                 .dynamicData(Map.of(
                         "name", dto.getNombre(),
+                        "link", link,
                         "logoUrl", "http://cdn.mcauto-images-production.sendgrid.net/b30f9991de8e45d3/af636f80-aa14-4886-9b12-ff4865e26908/627x465.png"
                 ))
                 .build();

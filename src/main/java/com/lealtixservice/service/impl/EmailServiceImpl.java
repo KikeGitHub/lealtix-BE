@@ -52,8 +52,9 @@ public class EmailServiceImpl implements Emailservice {
     public void sendEmailWithTemplate(EmailDTO emailDTO) throws IOException {
         Mail mail = new Mail();
         mail.setFrom(new Email(emailFrom));
+        mail.setSubject(emailDTO.getSubject());
         mail.setTemplateId(emailDTO.getTemplateId());
-
+        log.info("Sending email ... : {}", emailDTO.getSubject());
         Personalization personalization = new Personalization();
         personalization.addTo(new Email(emailDTO.getTo()));
         personalization.setSubject(emailDTO.getSubject());
