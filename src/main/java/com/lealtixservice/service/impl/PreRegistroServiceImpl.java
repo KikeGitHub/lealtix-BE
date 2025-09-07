@@ -10,7 +10,6 @@ import com.lealtixservice.service.Emailservice;
 import com.lealtixservice.service.InvitationService;
 import com.lealtixservice.service.PreRegistroService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,13 +21,9 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class PreRegistroServiceImpl implements PreRegistroService {
 
-    @Autowired
     private final Emailservice emailservice;
-    @Autowired
     private final InvitationService invitationService;
-    @Autowired
     private final SendGridTemplates sendGridTemplates;
-    @Autowired
     private final PreRegistroRepository preRegistroRepository;
 
     public boolean emailExists(String email) {
