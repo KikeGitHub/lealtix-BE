@@ -23,9 +23,6 @@ out/
 .DS_Store
 Thumbs.db
 
-# Entorno
-.env
-
 # Archivos de pruebas y cobertura
 *.exec
 jacoco.exec
