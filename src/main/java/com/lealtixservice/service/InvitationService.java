@@ -1,8 +1,9 @@
 package com.lealtixservice.service;
 
 import com.lealtixservice.dto.PreRegistroDTO;
-import com.lealtixservice.dto.RegistrationDto;
+import com.lealtixservice.dto.RegistroDto;
 import com.lealtixservice.dto.ValidateTokenResponse;
+import com.lealtixservice.entity.Invitation;
 
 /**
  * Interfaz para el servicio de invitaciones.
@@ -13,7 +14,8 @@ public interface InvitationService {
 
     ValidateTokenResponse validateToken(String token);
 
-    void completeRegistration(RegistrationDto registrationDto);
+    Invitation getInviteByEmail(String email);
 
+    void save(Invitation invite);
 }
 

@@ -1,10 +1,8 @@
 package com.lealtixservice.service.impl;
 
 import com.lealtixservice.dto.PreRegistroDTO;
-import com.lealtixservice.dto.RegistrationDto;
 import com.lealtixservice.dto.ValidateTokenResponse;
 import com.lealtixservice.entity.Invitation;
-import com.lealtixservice.exception.InvalidTokenException;
 import com.lealtixservice.repository.InvitationRepository;
 import com.lealtixservice.service.InvitationService;
 import com.lealtixservice.util.TokenUtils;
@@ -22,6 +20,7 @@ import java.util.Base64;
  */
 @Service
 public class InvitationServiceImpl implements InvitationService {
+
     private final InvitationRepository invitationRepository;
     private final SecureRandom secureRandom = new SecureRandom();
 
@@ -80,23 +79,16 @@ public class InvitationServiceImpl implements InvitationService {
         return ValidateTokenResponse.builder().ok(ok).email(email).message(message).build();
     }
 
+
     @Override
-    @Transactional
-    public void completeRegistration(RegistrationDto registrationDto) {
-        String tokenHash = TokenUtils.hashToken(registrationDto.getToken());
-        Invitation invitation = invitationRepository.findByTokenHash(tokenHash)
-                .orElseThrow(() -> new InvalidTokenException("Token no válido"));
-        if (invitation.getUsedAt() != null) {
-            // Ya fue usado
-        }
-        if (Instant.now().isAfter(invitation.getExpiresAt())) {
-            // Expirado
-        }
-        invitation.setUsedAt(Instant.now());
-        invitationRepository.save(invitation);
-        // Aquí se puede continuar con la lógica de registro del tenant y datos de pago.
+    public Invitation getInviteByEmail(String email) {
+        return (Invitation) invitationRepository.findByEmail(email).orElse(null);
     }
 
+    @Override
+    public void save(Invitation invite) {
+        invitationRepository.save(invite);
+    }
 
     private String generateRandomToken() {
         byte[] randomBytes = new byte[32];

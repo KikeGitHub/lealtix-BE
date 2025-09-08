@@ -1,7 +1,7 @@
 package com.lealtixservice.controller;
 
 import com.lealtixservice.dto.PreRegistroDTO;
-import com.lealtixservice.dto.RegistrationDto;
+import com.lealtixservice.dto.RegistroDto;
 import com.lealtixservice.dto.ValidateTokenResponse;
 import com.lealtixservice.service.InvitationService;
 import lombok.extern.slf4j.Slf4j;
@@ -41,14 +41,5 @@ public class InvitationController {
     public ResponseEntity<ValidateTokenResponse> validateToken(@RequestParam String token) {
         ValidateTokenResponse response = invitationService.validateToken(token);
         return ResponseEntity.ok(response);
-    }
-
-    /**
-     * Endpoint para completar el registro usando el token.
-     */
-    @PostMapping("/register")
-    public ResponseEntity<?> completeRegistration(@RequestBody RegistrationDto registrationDto) {
-        invitationService.completeRegistration(registrationDto);
-        return ResponseEntity.ok().body("Registro completado correctamente.");
     }
 }

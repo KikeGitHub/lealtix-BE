@@ -1,12 +1,13 @@
 package com.lealtixservice.dto;
 
-import lombok.Builder;
-import lombok.Data;
+import lombok.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 
-@Data
 @Builder
+@AllArgsConstructor
+@NoArgsConstructor
+@Getter
 public class PreRegistroDTO {
     @NotBlank
     private String nombre;
