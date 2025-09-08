@@ -79,12 +79,18 @@ public class RegistroServiceImpl implements RegistroService {
         // c) Obtener rol "tenant_admin"
         Role role = roleRepository.findByName("tenant_admin");
 
-        // d) Crear TenantUser
-        TenantUser tenantUser =TenantUser.builder()
-                        .user(user)
-                        .tenant(tenant)
-                        .role(role)
-                        .build();
+        // d) Crear TenantUserId y TenantUser
+        TenantUserId tenantUserId = new TenantUserId(
+            tenant.getId(),
+            user.getId(),
+            role.getId()
+        );
+        TenantUser tenantUser = TenantUser.builder()
+            .id(tenantUserId)
+            .user(user)
+            .tenant(tenant)
+            .role(role)
+            .build();
         tenantUserRepository.save(tenantUser);
 
         // e) Crear TenantPayment
@@ -102,4 +108,3 @@ public class RegistroServiceImpl implements RegistroService {
 
     }
 }
-
