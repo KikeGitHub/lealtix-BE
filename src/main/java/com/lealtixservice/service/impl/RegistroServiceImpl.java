@@ -1,5 +1,6 @@
 package com.lealtixservice.service.impl;
 
+import com.lealtixservice.dto.PagoDto;
 import com.lealtixservice.dto.RegistroDto;
 import com.lealtixservice.entity.*;
 import com.lealtixservice.repository.AppUserRepository;
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.LocalDateTime;
 
 @Service
 public class RegistroServiceImpl implements RegistroService {
@@ -93,18 +95,26 @@ public class RegistroServiceImpl implements RegistroService {
             .build();
         tenantUserRepository.save(tenantUser);
 
-        // e) Crear TenantPayment
-        TenantPayment payment = TenantPayment.builder()
-                .tenant(tenant)
-                .plan(dto.getPlan())
-                .status(dto.getStatus())
-                .build();
-
-        tenantPaymentRepository.save(payment);
-
         // confirm token invitation
         invite.setUsedAt(Instant.now());
         invitationService.save(invite);
 
+    }
+
+    @Override
+    public void registrarPago(PagoDto dto) {
+        Tenant tenant = tenantRepository.findById(dto.getTenantId())
+                .orElseThrow(() -> new IllegalArgumentException("Tenant not found with id: " + dto.getTenantId()));
+        TenantPayment payment = TenantPayment.builder()
+                .tenant(tenant)
+                .stripeCustomerId(dto.getStripeCustomerId())
+                .stripeSubscriptionId(dto.getStripeSubscriptionId())
+                .stripePaymentMethodId(dto.getStripePaymentMethodId())
+                .plan(dto.getPlan())
+                .status(dto.getStatus())
+                .startDate(LocalDateTime.now())
+                .endDate(LocalDateTime.now())
+                .build();
+        tenantPaymentRepository.save(payment);
     }
 }

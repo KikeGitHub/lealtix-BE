@@ -1,6 +1,7 @@
 package com.lealtixservice.controller;
 
 import com.lealtixservice.dto.EmailDTO;
+import com.lealtixservice.dto.GenericResponse;
 import com.lealtixservice.service.Emailservice;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -26,14 +27,13 @@ public class EmailController {
         @ApiResponse(responseCode = "500", description = "Error al enviar el correo", content = @Content)
     })
     @PostMapping("/send")
-    public ResponseEntity<String> sendEmailWithTemplate(
+    public ResponseEntity<GenericResponse> sendEmailWithTemplate(
             @RequestBody EmailDTO emailDTO) {
         try {
             emailService.sendEmailWithTemplate(emailDTO);
-            return ResponseEntity.ok("Correo enviado exitosamente");
+            return ResponseEntity.ok(new GenericResponse("200", "SUCCESS", null));
         } catch (IOException e) {
-            return ResponseEntity.status(500).body("Error al enviar el correo: " + e.getMessage());
+            return ResponseEntity.status(500).body(new GenericResponse("500", "Error al enviar el correo: " + e.getMessage(), null));
         }
     }
 }
-
