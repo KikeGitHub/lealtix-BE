@@ -18,6 +18,5 @@ public interface InvitationService {
 
     void save(Invitation invite);
 
-    void markPreRegistroAsRegistered(String email);
 }
 

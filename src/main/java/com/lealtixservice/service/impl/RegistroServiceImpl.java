@@ -5,11 +5,7 @@ import com.lealtixservice.dto.EmailDTO;
 import com.lealtixservice.dto.PagoDto;
 import com.lealtixservice.dto.RegistroDto;
 import com.lealtixservice.entity.*;
-import com.lealtixservice.repository.AppUserRepository;
-import com.lealtixservice.repository.TenantRepository;
-import com.lealtixservice.repository.TenantUserRepository;
-import com.lealtixservice.repository.TenantPaymentRepository;
-import com.lealtixservice.repository.RoleRepository;
+import com.lealtixservice.repository.*;
 import com.lealtixservice.service.Emailservice;
 import com.lealtixservice.service.InvitationService;
 import com.lealtixservice.service.RegistroService;
@@ -36,6 +32,7 @@ public class RegistroServiceImpl implements RegistroService {
     private final BCryptPasswordEncoder passwordEncoder;
     private final InvitationService invitationService;
     private final Emailservice emailservice;
+    private final PreRegistroRepository preRegistroRepository;
     private final SendGridTemplates sendGridTemplates = new SendGridTemplates();
 
     @Autowired
@@ -44,7 +41,7 @@ public class RegistroServiceImpl implements RegistroService {
                               TenantUserRepository tenantUserRepository,
                               TenantPaymentRepository tenantPaymentRepository,
                               RoleRepository roleRepository, InvitationService invitationService,
-                               Emailservice emailservice) {
+                               Emailservice emailservice, PreRegistroRepository preRegistroRepository) {
         this.appUserRepository = appUserRepository;
         this.tenantRepository = tenantRepository;
         this.tenantUserRepository = tenantUserRepository;
@@ -53,6 +50,7 @@ public class RegistroServiceImpl implements RegistroService {
         this.passwordEncoder = new BCryptPasswordEncoder();
         this.invitationService = invitationService;
         this.emailservice = emailservice;
+        this.preRegistroRepository = preRegistroRepository;
     }
 
     @Override
@@ -111,8 +109,11 @@ public class RegistroServiceImpl implements RegistroService {
         invitationService.save(invite);
 
         // change status pre-registro to Registered
-        invitationService.markPreRegistroAsRegistered(dto.getEmail());
-
+        PreRegistro preRegistro = preRegistroRepository.findByEmail(dto.getEmail()).orElseThrow(
+                () -> new IllegalArgumentException("Pre-registro no encontrado para email: " + dto.getEmail())
+        );
+        preRegistro.setStatus("Registered");
+        preRegistroRepository.save(preRegistro);
         // send welcome email could be here
         EmailDTO emailDTO = EmailDTO.builder()
                 .to(dto.getEmail())

@@ -3,10 +3,8 @@ package com.lealtixservice.service.impl;
 import com.lealtixservice.dto.PreRegistroDTO;
 import com.lealtixservice.dto.ValidateTokenResponse;
 import com.lealtixservice.entity.Invitation;
-import com.lealtixservice.entity.PreRegistro;
 import com.lealtixservice.repository.InvitationRepository;
 import com.lealtixservice.service.InvitationService;
-import com.lealtixservice.service.PreRegistroService;
 import com.lealtixservice.util.TokenUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -26,8 +24,6 @@ public class InvitationServiceImpl implements InvitationService {
 
     @Autowired
     private InvitationRepository invitationRepository;
-    @Autowired
-    private PreRegistroService preRegistroService;
 
     private final SecureRandom secureRandom = new SecureRandom();
 
@@ -94,16 +90,6 @@ public class InvitationServiceImpl implements InvitationService {
         invitationRepository.save(invite);
     }
 
-    @Override
-    public void markPreRegistroAsRegistered(String email) {
-        PreRegistro preRegistro = preRegistroService.getPreRegistroByEmail(email);
-        if (preRegistro != null) {
-            preRegistro.setStatus("Registered");
-            preRegistroService.save(preRegistro);
-        }else{
-            throw new IllegalArgumentException("No pre-registro found for email: " + email);
-        }
-    }
 
     private String generateRandomToken() {
         byte[] randomBytes = new byte[32];
