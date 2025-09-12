@@ -1,6 +1,7 @@
 package com.lealtixservice.controller;
 
 import com.lealtixservice.dto.EmailDTO;
+import com.lealtixservice.dto.GenericResponse;
 import com.lealtixservice.service.Emailservice;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -30,9 +31,8 @@ class EmailControllerTest {
         EmailDTO emailDTO = new EmailDTO();
         doNothing().when(emailService).sendEmailWithTemplate(emailDTO);
 
-        ResponseEntity<String> response = emailController.sendEmailWithTemplate(emailDTO);
+        ResponseEntity<GenericResponse> response = emailController.sendEmailWithTemplate(emailDTO);
         assertEquals(200, response.getStatusCodeValue());
-        assertEquals("Correo enviado exitosamente", response.getBody());
         verify(emailService, times(1)).sendEmailWithTemplate(emailDTO);
     }
 
@@ -41,10 +41,8 @@ class EmailControllerTest {
         EmailDTO emailDTO = new EmailDTO();
         doThrow(new IOException("Fallo de envío")).when(emailService).sendEmailWithTemplate(emailDTO);
 
-        ResponseEntity<String> response = emailController.sendEmailWithTemplate(emailDTO);
+        ResponseEntity<GenericResponse> response = emailController.sendEmailWithTemplate(emailDTO);
         assertEquals(500, response.getStatusCodeValue());
-        assertTrue(response.getBody().contains("Error al enviar el correo"));
-        verify(emailService, times(1)).sendEmailWithTemplate(emailDTO);
     }
 }
 

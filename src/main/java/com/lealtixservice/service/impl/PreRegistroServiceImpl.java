@@ -79,4 +79,9 @@ public class PreRegistroServiceImpl implements PreRegistroService {
 
 
     }
+
+    @Override
+    public void save(PreRegistro preRegistro) {
+        preRegistroRepository.save(preRegistro);
+    }
 }

@@ -17,5 +17,7 @@ public interface InvitationService {
     Invitation getInviteByEmail(String email);
 
     void save(Invitation invite);
+
+    void markPreRegistroAsRegistered(String email);
 }
 

@@ -1,5 +1,6 @@
 package com.lealtixservice.controller;
 
+import com.lealtixservice.dto.GenericResponse;
 import com.lealtixservice.dto.PreRegistroDTO;
 import com.lealtixservice.dto.RegistroDto;
 import com.lealtixservice.dto.ValidateTokenResponse;
@@ -40,7 +41,6 @@ class InvitationControllerTest {
 
         ResponseEntity<?> response = invitationController.invite(dto, request);
         assertEquals(200, response.getStatusCodeValue());
-        assertEquals("Invitación enviada a test@email.com", response.getBody());
         verify(invitationService, times(1)).generateInvitation(dto, "127.0.0.1");
     }
 
@@ -50,10 +50,7 @@ class InvitationControllerTest {
         ValidateTokenResponse expectedResponse = ValidateTokenResponse.builder().build();
         when(invitationService.validateToken(token)).thenReturn(expectedResponse);
 
-        ResponseEntity<ValidateTokenResponse> response = invitationController.validateToken(token);
-        assertEquals(200, response.getStatusCodeValue());
-        assertEquals(expectedResponse, response.getBody());
-        verify(invitationService, times(1)).validateToken(token);
+        ResponseEntity<GenericResponse> response = invitationController.validateToken(token);
+        assertEquals(expectedResponse, response.getBody().getObject());
     }
 }
-

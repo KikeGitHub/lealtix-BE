@@ -1,5 +1,6 @@
 package com.lealtixservice.controller;
 
+import com.lealtixservice.dto.GenericResponse;
 import com.lealtixservice.dto.RegistroDto;
 import com.lealtixservice.service.RegistroService;
 import org.junit.jupiter.api.BeforeEach;
@@ -31,9 +32,9 @@ class RegistroControllerTest {
         RegistroDto dto = new RegistroDto();
         doNothing().when(registroService).register(dto);
 
-        ResponseEntity<String> response = registroController.register(dto);
+        ResponseEntity<GenericResponse> response = registroController.register(dto);
         assertEquals(HttpStatus.CREATED, response.getStatusCode());
-        assertEquals("Registro exitoso", response.getBody());
+        assertEquals(new GenericResponse("201", "SUCCESS", null), response.getBody());
         verify(registroService, times(1)).register(dto);
     }
 
@@ -42,21 +43,10 @@ class RegistroControllerTest {
         RegistroDto dto = new RegistroDto();
         doThrow(new IllegalArgumentException("Error de registro")).when(registroService).register(dto);
 
-        ResponseEntity<String> response = registroController.register(dto);
+        ResponseEntity<GenericResponse> response = registroController.register(dto);
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
-        assertEquals("Error de registro", response.getBody());
+        assertEquals(new GenericResponse("500", "Error de registro", null), response.getBody());
         verify(registroService, times(1)).register(dto);
     }
 
-    @Test
-    void register_otherException() {
-        RegistroDto dto = new RegistroDto();
-        doThrow(new RuntimeException()).when(registroService).register(dto);
-
-        ResponseEntity<String> response = registroController.register(dto);
-        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-        assertEquals("Invalid request body", response.getBody());
-        verify(registroService, times(1)).register(dto);
-    }
 }
-

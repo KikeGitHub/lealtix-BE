@@ -31,13 +31,14 @@ public class RegistroController {
     public ResponseEntity<GenericResponse> register(@RequestBody RegistroDto registroDto) {
        try {
             registroService.register(registroDto);
-            return ResponseEntity.status(HttpStatus.OK)
+            return ResponseEntity.status(HttpStatus.CREATED)
                 .body(new GenericResponse("201", "SUCCESS", null));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(new GenericResponse("500", e.getMessage(), null));
         } catch (Exception e) {
-            log.error("Error during registration", e);
+            String errorMsg = e.getMessage() != null ? e.getMessage() : "Unknown error during registration";
+            log.error("Error during registration: {}", errorMsg, e);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(new GenericResponse("400", "Invalid request body", null));
         }
