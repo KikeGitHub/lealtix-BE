@@ -16,4 +16,6 @@ public interface PreRegistroService {
     public boolean emailExists(String email);
 
     public void sendPreRegistroEmail(String email, String nombre, String url) throws IOException;
+
+    void save(PreRegistro preRegistro);
 }

@@ -1,13 +1,13 @@
 package com.lealtixservice.service.impl;
 
 import com.lealtixservice.dto.PreRegistroDTO;
-import com.lealtixservice.dto.RegistrationDto;
+import com.lealtixservice.dto.RegistroDto;
 import com.lealtixservice.dto.ValidateTokenResponse;
-import com.lealtixservice.entity.Invitation;
-import com.lealtixservice.exception.InvalidTokenException;
-import com.lealtixservice.repository.InvitationRepository;
+import com.lealtixservice.entity.*;
+import com.lealtixservice.repository.*;
 import com.lealtixservice.service.InvitationService;
 import com.lealtixservice.util.TokenUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,7 +22,16 @@ import java.util.Base64;
  */
 @Service
 public class InvitationServiceImpl implements InvitationService {
-    private final InvitationRepository invitationRepository;
+
+    @Autowired
+    private InvitationRepository invitationRepository;
+    @Autowired
+    private PreRegistroRepository preRegistroRepository;
+    @Autowired
+    private AppUserRepository appUserRepository;
+    @Autowired
+    private TenantUserRepository tenantUserRepository;
+
     private final SecureRandom secureRandom = new SecureRandom();
 
     @Value("${invitation.token.expiry-hours}")
@@ -31,9 +40,6 @@ public class InvitationServiceImpl implements InvitationService {
     @Value("${invitation.base-url}")
     private String baseUrl;
 
-    public InvitationServiceImpl(InvitationRepository invitationRepository) {
-        this.invitationRepository = invitationRepository;
-    }
 
     @Override
     @Transactional
@@ -61,7 +67,8 @@ public class InvitationServiceImpl implements InvitationService {
     public ValidateTokenResponse validateToken(String token) {
         String message = "SUCCESS";
         boolean ok = true;
-        String email = null;
+        RegistroDto registroDto = new RegistroDto();
+        ValidateTokenResponse response = ValidateTokenResponse.builder().build();
 
         String tokenHash = TokenUtils.hashToken(token);
         Invitation invitation = invitationRepository.findByTokenHash(tokenHash).orElse(null);
@@ -69,32 +76,77 @@ public class InvitationServiceImpl implements InvitationService {
             message = "Token no válido";
             ok = false;
         }else if (invitation.getUsedAt() != null) {
-            message = "Token ya usado";
-            ok = false;
+            AppUser user = appUserRepository.findByEmail(invitation.getEmail());
+            if(user == null){
+                message = "Token ya usado sin Registro de Tenant";
+                ok = false;
+            }else{
+                TenantUser tenantUser = tenantUserRepository.findByUserId(user.getId());
+                if(tenantUser.getTenant() != null){
+                    Tenant tenant = tenantUser.getTenant();
+                    // Token usado con registro de tenant mapear todo el objeto
+                    registroDto.setNombre(user.getNombre());
+                    registroDto.setPaterno(user.getPaterno());
+                    registroDto.setMaterno(user.getMaterno());
+                    registroDto.setFechaNacimiento(user.getFechaNacimiento());
+                    registroDto.setTelefono(user.getTelefono());
+                    registroDto.setEmail(user.getEmail());
+                    registroDto.setNombreNegocio(tenant.getNombreNegocio());
+                    registroDto.setDireccion(tenant.getDireccion());
+                    registroDto.setTelefonoNegocio(tenant.getTelefono());
+                    registroDto.setTipoNegocio(tenant.getTipoNegocio());
+                    response.setRegistroDto(registroDto);
+                }else{
+                    message = "Token ya usado Sin Registro de Tenant";
+                    ok = false;
+                }
+            }
+
         }else if (Instant.now().isAfter(invitation.getExpiresAt())) {
             message = "Token expirado";
             ok = false;
         }else{
-            email = invitation.getEmail();
+            response.setEmail(invitation.getEmail());
+            PreRegistro preRegistro = preRegistroRepository.findByEmail(invitation.getEmail()).orElse(null);
+            if(preRegistro != null) {
+                String[] array = splitNombreCompleto(preRegistro.getNombre());
+                registroDto.setNombre(array[0]);
+                registroDto.setPaterno(array[1]);
+                registroDto.setMaterno(array[2]);
+                registroDto.setEmail(preRegistro.getEmail());
+                response.setRegistroDto(registroDto);
+            }
         }
-        return ValidateTokenResponse.builder().ok(ok).email(email).message(message).build();
+        response.setOk(ok);
+        response.setMessage(message);
+
+        return response;
+    }
+
+    private static String[] splitNombreCompleto(String nombreCompleto) {
+        if (nombreCompleto == null || nombreCompleto.trim().isEmpty()) {
+            return new String[]{"", "", ""};
+        }
+        String[] partes = nombreCompleto.trim().split("\\s+");
+        if (partes.length < 3) {
+            // Si solo hay dos partes, asumimos nombre y un apellido
+            return new String[]{partes[0], partes.length > 1 ? partes[1] : "", ""};
+        }
+        // Los dos últimos son apellidos, el resto es nombre
+        String nombre = String.join(" ", java.util.Arrays.copyOfRange(partes, 0, partes.length - 2));
+        String paterno = partes[partes.length - 2];
+        String materno = partes[partes.length - 1];
+        return new String[]{nombre, paterno, materno};
     }
 
     @Override
-    @Transactional
-    public void completeRegistration(RegistrationDto registrationDto) {
-        String tokenHash = TokenUtils.hashToken(registrationDto.getToken());
-        Invitation invitation = invitationRepository.findByTokenHash(tokenHash)
-                .orElseThrow(() -> new InvalidTokenException("Token no válido"));
-        if (invitation.getUsedAt() != null) {
-            // Ya fue usado
-        }
-        if (Instant.now().isAfter(invitation.getExpiresAt())) {
-            // Expirado
-        }
-        invitation.setUsedAt(Instant.now());
-        invitationRepository.save(invitation);
-        // Aquí se puede continuar con la lógica de registro del tenant y datos de pago.
+    public Invitation getInviteByEmail(String email) {
+        return (Invitation) invitationRepository.findByEmail(email).orElse(null);
+    }
+
+    @Override
+    public void save(Invitation invite) {
+        invitationRepository.save(invite);
     }
 
 
