@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 public class PagoDto {
-    private Long tenantId;
+    private String email;
     private String plan;
     private String status;
     private String stripeCustomerId;

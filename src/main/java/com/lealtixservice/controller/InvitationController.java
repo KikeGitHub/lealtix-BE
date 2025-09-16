@@ -40,7 +40,7 @@ public class InvitationController {
         String ipAddress = request.getRemoteAddr();
         String invite = invitationService.generateInvitation(dto, ipAddress);
         log.info("invite: {}", invite);
-        return ResponseEntity.ok(new GenericResponse("200", "SUCCESS", "Invitación enviada a " + dto.getEmail()));
+        return ResponseEntity.ok(new GenericResponse(200, "SUCCESS", "Invitación enviada a " + dto.getEmail()));
     }
 
     /**
@@ -55,9 +55,9 @@ public class InvitationController {
     public ResponseEntity<GenericResponse> validateToken(@RequestParam String token) {
         ValidateTokenResponse response = invitationService.validateToken(token);
         if (response != null && response.isOk()) {
-            return ResponseEntity.ok(new GenericResponse("200", "SUCCESS", response));
+            return ResponseEntity.ok(new GenericResponse(200, "SUCCESS", response));
         } else {
-            return ResponseEntity.status(400).body(new GenericResponse("400", "Token inválido o expirado", response));
+            return ResponseEntity.status(400).body(new GenericResponse(400, "Token inválido o expirado", response));
         }
     }
 }

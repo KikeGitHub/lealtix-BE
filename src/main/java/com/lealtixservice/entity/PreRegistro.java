@@ -25,8 +25,12 @@ public class PreRegistro {
     @Column(nullable = false)
     private String status;
 
+    private String description;
+
     @Column(nullable = false)
     private LocalDateTime fechaRegistro = LocalDateTime.now();
+
+    private LocalDateTime updatedDate = LocalDateTime.now();
 
 }
 

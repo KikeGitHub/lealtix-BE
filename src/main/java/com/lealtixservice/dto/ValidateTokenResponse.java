@@ -9,5 +9,6 @@ public class ValidateTokenResponse {
     private boolean ok;
     private String email;
     private  String message;
+    private RegistroDto registroDto;
 }
 

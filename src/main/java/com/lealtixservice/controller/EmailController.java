@@ -31,9 +31,9 @@ public class EmailController {
             @RequestBody EmailDTO emailDTO) {
         try {
             emailService.sendEmailWithTemplate(emailDTO);
-            return ResponseEntity.ok(new GenericResponse("200", "SUCCESS", null));
+            return ResponseEntity.ok(new GenericResponse(200, "SUCCESS", null));
         } catch (IOException e) {
-            return ResponseEntity.status(500).body(new GenericResponse("500", "Error al enviar el correo: " + e.getMessage(), null));
+            return ResponseEntity.status(500).body(new GenericResponse(500, "Error al enviar el correo: " + e.getMessage(), null));
         }
     }
 }

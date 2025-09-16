@@ -38,14 +38,14 @@ public class PreRegistroController {
         try {
             PreRegistro preRegistro = preRegistroService.register(dto);
             return ResponseEntity.status(HttpStatus.OK)
-                .body(new GenericResponse("201", "SUCCESS", preRegistro));
+                .body(new GenericResponse(201, "SUCCESS", preRegistro));
         } catch (EmailAlreadyRegisteredException e) {
             return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(new GenericResponse("409", e.getMessage(), null));
+                .body(new GenericResponse(409, e.getMessage(), null));
         } catch (IOException e) {
             log.error("Error enviando email de pre-registro", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new GenericResponse("500", "Error enviando email de pre-registro", null));
+                .body(new GenericResponse(500, "Error enviando email de pre-registro", null));
         }
     }
     
@@ -60,10 +60,10 @@ public class PreRegistroController {
         try {
             preRegistroService.deletePreRegistro(id);
             return ResponseEntity.status(HttpStatus.NO_CONTENT)
-                .body(new GenericResponse("204", "SUCCESS", null));
+                .body(new GenericResponse(204, "SUCCESS", null));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(new GenericResponse("404", e.getMessage(), null));
+                .body(new GenericResponse(404, e.getMessage(), null));
         }
     }
 
@@ -76,10 +76,10 @@ public class PreRegistroController {
     public ResponseEntity<GenericResponse> getPreRegistroByEmail(@RequestParam String email) {
         PreRegistro preRegistro = preRegistroService.getPreRegistroByEmail(email);
         if (preRegistro != null) {
-            return ResponseEntity.ok(new GenericResponse("200", "SUCCESS", preRegistro));
+            return ResponseEntity.ok(new GenericResponse(200, "SUCCESS", preRegistro));
         } else {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(new GenericResponse("404", "Pre-registro no encontrado", null));
+                .body(new GenericResponse(404, "Pre-registro no encontrado", null));
         }
     }
 }

@@ -25,6 +25,7 @@ public class TenantPayment {
     private String status; // pending, active, canceled, trial
     private java.time.LocalDateTime startDate;
     private java.time.LocalDateTime endDate;
+    private String description;
     @Builder.Default
     private java.time.LocalDateTime createdAt = java.time.LocalDateTime.now();
 

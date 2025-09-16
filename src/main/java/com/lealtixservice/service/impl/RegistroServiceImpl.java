@@ -5,10 +5,13 @@ import com.lealtixservice.dto.EmailDTO;
 import com.lealtixservice.dto.PagoDto;
 import com.lealtixservice.dto.RegistroDto;
 import com.lealtixservice.entity.*;
+import com.lealtixservice.enums.PaymentStatus;
 import com.lealtixservice.repository.*;
 import com.lealtixservice.service.Emailservice;
 import com.lealtixservice.service.InvitationService;
 import com.lealtixservice.service.RegistroService;
+import com.lealtixservice.service.TenantPaymentService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -24,50 +27,57 @@ import java.util.Map;
 @Service
 public class RegistroServiceImpl implements RegistroService {
 
-    private final AppUserRepository appUserRepository;
-    private final TenantRepository tenantRepository;
-    private final TenantUserRepository tenantUserRepository;
-    private final TenantPaymentRepository tenantPaymentRepository;
-    private final RoleRepository roleRepository;
-    private final BCryptPasswordEncoder passwordEncoder;
-    private final InvitationService invitationService;
-    private final Emailservice emailservice;
-    private final PreRegistroRepository preRegistroRepository;
-    private final SendGridTemplates sendGridTemplates = new SendGridTemplates();
-
+    public static final String PENDING = "PENDING";
     @Autowired
-    public RegistroServiceImpl(AppUserRepository appUserRepository,
-                              TenantRepository tenantRepository,
-                              TenantUserRepository tenantUserRepository,
-                              TenantPaymentRepository tenantPaymentRepository,
-                              RoleRepository roleRepository, InvitationService invitationService,
-                               Emailservice emailservice, PreRegistroRepository preRegistroRepository) {
-        this.appUserRepository = appUserRepository;
-        this.tenantRepository = tenantRepository;
-        this.tenantUserRepository = tenantUserRepository;
-        this.tenantPaymentRepository = tenantPaymentRepository;
-        this.roleRepository = roleRepository;
-        this.passwordEncoder = new BCryptPasswordEncoder();
-        this.invitationService = invitationService;
-        this.emailservice = emailservice;
-        this.preRegistroRepository = preRegistroRepository;
-    }
+    private  AppUserRepository appUserRepository;
+    @Autowired
+    private  TenantRepository tenantRepository;
+    @Autowired
+    private  TenantUserRepository tenantUserRepository;
+    @Autowired
+    private  TenantPaymentRepository tenantPaymentRepository;
+    @Autowired
+    private  RoleRepository roleRepository;
+    @Autowired
+    private  BCryptPasswordEncoder passwordEncoder;
+    @Autowired
+    private  InvitationService invitationService;
+    @Autowired
+    private  Emailservice emailservice;
+    @Autowired
+    private  PreRegistroRepository preRegistroRepository;
+    @Autowired
+    private  SendGridTemplates sendGridTemplates;
+    @Autowired
+    private AppUserRepository userRepository;
 
     @Override
     @Transactional
     public void register(RegistroDto dto) {
         Invitation invite = invitationService.getInviteByEmail(dto.getEmail());
+        AppUser appUser = userRepository.findByEmail(dto.getEmail());
         if (invite == null) {
             throw new IllegalArgumentException("No invitation found for email: " + dto.getEmail());
         }
         if (invite.getUsedAt() != null) {
-            throw new IllegalArgumentException("Invitation already used for email: " + dto.getEmail());
+           if (appUser == null) {
+                throw new IllegalArgumentException("User already registered with email: " + dto.getEmail());
+            }
         }
         if (Instant.now().isAfter(invite.getExpiresAt())) {
             throw new IllegalArgumentException("Token expired for email: " + dto.getEmail());
         }
         // a) Crear AppUser
-        AppUser user = AppUser.builder()
+        if(appUser != null){
+           // modificar usuario existente
+           appUser.setNombre(dto.getNombre());
+           appUser.setPaterno(dto.getPaterno());
+           appUser.setMaterno(dto.getMaterno());
+           appUser.setFechaNacimiento(dto.getFechaNacimiento());
+           appUser.setTelefono(dto.getTelefono());
+           appUser.setPasswordHash(passwordEncoder.encode(dto.getPassword()));
+        }else{ // nuevo usuario
+            appUser = AppUser.builder()
                 .nombre(dto.getNombre())
                 .paterno(dto.getPaterno())
                 .materno(dto.getMaterno())
@@ -76,15 +86,28 @@ public class RegistroServiceImpl implements RegistroService {
                 .email(dto.getEmail())
                 .passwordHash(passwordEncoder.encode(dto.getPassword()))
                 .build();
-        appUserRepository.save(user);
+        }
+        appUserRepository.save(appUser);
 
         // b) Guardar Tenant
-        Tenant tenant = Tenant.builder()
-                .nombreNegocio(dto.getNombreNegocio())
-                .direccion(dto.getDireccion())
-                .telefono(dto.getTelefonoNegocio())
-                .tipoNegocio(dto.getTipoNegocio())
-                .build();
+        // valida si ya existe un tenant
+        Tenant tenant = Tenant.builder().build();
+        TenantUser existingTenantUser = tenantUserRepository.findByUserId(appUser.getId());
+        if (existingTenantUser != null && existingTenantUser.getTenant() != null) {
+            tenant = existingTenantUser.getTenant();  // modificar tenant existente
+            tenant.setNombreNegocio(dto.getNombreNegocio());
+            tenant.setDireccion(dto.getDireccion());
+            tenant.setTelefono(dto.getTelefonoNegocio());
+            tenant.setTipoNegocio(dto.getTipoNegocio());
+        }else{ // nuevo tenant
+            tenant = Tenant.builder()
+                    .nombreNegocio(dto.getNombreNegocio())
+                    .direccion(dto.getDireccion())
+                    .isActive(false) // initially inactive until payment is confirmed
+                    .telefono(dto.getTelefonoNegocio())
+                    .tipoNegocio(dto.getTipoNegocio())
+                    .build();
+        }
         tenantRepository.save(tenant);
 
         // c) Obtener rol "tenant_admin"
@@ -93,12 +116,12 @@ public class RegistroServiceImpl implements RegistroService {
         // d) Crear TenantUserId y TenantUser
         TenantUserId tenantUserId = new TenantUserId(
             tenant.getId(),
-            user.getId(),
+            appUser.getId(),
             role.getId()
         );
         TenantUser tenantUser = TenantUser.builder()
             .id(tenantUserId)
-            .user(user)
+            .user(appUser)
             .tenant(tenant)
             .role(role)
             .build();
@@ -112,33 +135,58 @@ public class RegistroServiceImpl implements RegistroService {
         PreRegistro preRegistro = preRegistroRepository.findByEmail(dto.getEmail()).orElseThrow(
                 () -> new IllegalArgumentException("Pre-registro no encontrado para email: " + dto.getEmail())
         );
-        preRegistro.setStatus("Registered");
+        preRegistro.setStatus(PENDING); // Payment pending
+        preRegistro.setDescription("Payment pending");
+        preRegistro.setUpdatedDate(LocalDateTime.now());
         preRegistroRepository.save(preRegistro);
-        // send welcome email could be here
-        EmailDTO emailDTO = EmailDTO.builder()
-                .to(dto.getEmail())
-                .subject("Bienvenido a Lealtix")
-                .templateId(sendGridTemplates.getWelcomeTemplate())
-                .dynamicData(Map.of(
-                        "name", dto.getNombre(),
-                        "logoUrl", "http://cdn.mcauto-images-production.sendgrid.net/b30f9991de8e45d3/af636f80-aa14-4886-9b12-ff4865e26908/627x465.png"
-                ))
+
+        // Initiate payment process INITIATED Status
+        TenantPayment tenantPayment = TenantPayment.builder()
+                .tenant(tenant)
+                .plan(dto.getPlan())
+                .status(PaymentStatus.INITIATED.getStatus())
+                .startDate(LocalDateTime.now())
+                .endDate(LocalDateTime.now().plusMonths(1)) // assuming monthly plan
                 .build();
-        try {
-            emailservice.sendEmailWithTemplate(emailDTO);
-        } catch (IOException e) {
-            log.error("Error sending welcome email to " + dto.getEmail(), e);
-            // implementar bitacora de envios de email
-            throw new RuntimeException(e);
-        }
+        tenantPaymentRepository.save(tenantPayment);
+
+        // send welcome email could be here NO debe enviar email hasya confirmar pago.
+//        EmailDTO emailDTO = EmailDTO.builder()
+//                .to(dto.getEmail())
+//                .subject("Bienvenido a Lealtix")
+//                .templateId(sendGridTemplates.getWelcomeTemplate())
+//                .dynamicData(Map.of(
+//                        "name", dto.getNombre(),
+//                        "username", dto.getEmail(),
+//                        "password", dto.getPassword(),
+//                        "link", "https://app.lealtix.com/login",
+//                        "logoUrl", "http://cdn.mcauto-images-production.sendgrid.net/b30f9991de8e45d3/af636f80-aa14-4886-9b12-ff4865e26908/627x465.png"
+//                ))
+//                .build();
+//        try {
+//            emailservice.sendEmailWithTemplate(emailDTO);
+//        } catch (IOException e) {
+//            log.error("Error sending welcome email to " + dto.getEmail(), e);
+//            // implementar bitacora de envios de email
+//            throw new RuntimeException(e);
+//        }
 
 
     }
 
     @Override
     public void registrarPago(PagoDto dto) {
-        Tenant tenant = tenantRepository.findById(dto.getTenantId())
-                .orElseThrow(() -> new IllegalArgumentException("Tenant not found with id: " + dto.getTenantId()));
+        AppUser user = appUserRepository.findByEmail(dto.getEmail());
+        Tenant tenant = null;
+        if (user == null) {
+            throw new IllegalArgumentException("User not found with email: " + dto.getEmail());
+        }else{
+            TenantUser tenantUser = tenantUserRepository.findByUserId(user.getId());
+            if(tenantUser == null || tenantUser.getTenant() == null){
+                throw new IllegalArgumentException("The user is not associated with any tenant");
+            }
+            tenant = tenantUser.getTenant();
+        }
         TenantPayment payment = TenantPayment.builder()
                 .tenant(tenant)
                 .stripeCustomerId(dto.getStripeCustomerId())

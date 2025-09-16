@@ -32,15 +32,15 @@ public class RegistroController {
        try {
             registroService.register(registroDto);
             return ResponseEntity.status(HttpStatus.CREATED)
-                .body(new GenericResponse("201", "SUCCESS", null));
+                .body(new GenericResponse(201, "SUCCESS", null));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new GenericResponse("500", e.getMessage(), null));
+                .body(new GenericResponse(500, e.getMessage(), null));
         } catch (Exception e) {
             String errorMsg = e.getMessage() != null ? e.getMessage() : "Unknown error during registration";
             log.error("Error during registration: {}", errorMsg, e);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(new GenericResponse("400", "Invalid request body", null));
+                .body(new GenericResponse(400, "Invalid request body", null));
         }
     }
 
@@ -55,14 +55,14 @@ public class RegistroController {
         try {
             registroService.registrarPago(pagoDto);
             return ResponseEntity.status(HttpStatus.OK)
-                .body(new GenericResponse("201", "SUCCESS", null));
+                .body(new GenericResponse(201, "SUCCESS", null));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(new GenericResponse("404", e.getMessage(), null));
+                .body(new GenericResponse(404, e.getMessage(), null));
         } catch (Exception e) {
             log.error("Error during payment registration", e);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(new GenericResponse("400", "Invalid payment request body", null));
+                .body(new GenericResponse(400, "Invalid payment request body", null));
         }
     }
 

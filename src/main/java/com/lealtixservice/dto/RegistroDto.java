@@ -8,6 +8,7 @@ import java.time.LocalDate;
 @AllArgsConstructor
 @NoArgsConstructor
 @Getter
+@Setter
 public class RegistroDto {
     // Datos de usuario (admin)
     private String nombre;
