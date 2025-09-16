@@ -149,29 +149,6 @@ public class RegistroServiceImpl implements RegistroService {
                 .endDate(LocalDateTime.now().plusMonths(1)) // assuming monthly plan
                 .build();
         tenantPaymentRepository.save(tenantPayment);
-
-        // send welcome email could be here NO debe enviar email hasya confirmar pago.
-//        EmailDTO emailDTO = EmailDTO.builder()
-//                .to(dto.getEmail())
-//                .subject("Bienvenido a Lealtix")
-//                .templateId(sendGridTemplates.getWelcomeTemplate())
-//                .dynamicData(Map.of(
-//                        "name", dto.getNombre(),
-//                        "username", dto.getEmail(),
-//                        "password", dto.getPassword(),
-//                        "link", "https://app.lealtix.com/login",
-//                        "logoUrl", "http://cdn.mcauto-images-production.sendgrid.net/b30f9991de8e45d3/af636f80-aa14-4886-9b12-ff4865e26908/627x465.png"
-//                ))
-//                .build();
-//        try {
-//            emailservice.sendEmailWithTemplate(emailDTO);
-//        } catch (IOException e) {
-//            log.error("Error sending welcome email to " + dto.getEmail(), e);
-//            // implementar bitacora de envios de email
-//            throw new RuntimeException(e);
-//        }
-
-
     }
 
     @Override
