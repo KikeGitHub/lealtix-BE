@@ -1,6 +1,8 @@
 package com.lealtixservice.service.impl;
 
 import com.lealtixservice.dto.EmailDTO;
+import com.lealtixservice.entity.EmailLog;
+import com.lealtixservice.service.EmailLogService;
 import com.lealtixservice.service.Emailservice;
 import com.sendgrid.Method;
 import com.sendgrid.Request;
@@ -16,6 +18,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 
 @Service
 @Slf4j
@@ -23,6 +26,9 @@ public class EmailServiceImpl implements Emailservice {
 
     @Autowired
     private SendGrid sendGrid;
+
+    @Autowired
+    private EmailLogService emailLogService;
 
     @Value("${sendgrid.email.from}")
     private String emailFrom;
@@ -71,6 +77,18 @@ public class EmailServiceImpl implements Emailservice {
 
         Response response = sendGrid.api(request);
         log.info("SendGrid response: {}", response.getStatusCode());
+
+        EmailLog emailLog = EmailLog.builder()
+                .entityType(emailDTO.getTemplateId())
+                .entityId(0L)
+                .email(emailDTO.getTo())
+                .templateName(emailDTO.getTemplateId())
+                .sendgridMessageId(response.getHeaders().get("X-Message-Id") != null ? response.getHeaders().get("X-Message-Id").trim() : null)
+                .status(response.getStatusCode() >= 200 && response.getStatusCode() < 300 ? "sent" : "failed")
+                .errorMessage(response.getStatusCode() >= 200 && response.getStatusCode() < 300 ? null : response.getBody())
+                .createdAt(LocalDateTime.now())
+                .build();
+        emailLogService.save(emailLog);
     }
 
 
