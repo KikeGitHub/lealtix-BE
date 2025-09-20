@@ -53,7 +53,7 @@ public class RegistroServiceImpl implements RegistroService {
 
     @Override
     @Transactional
-    public void register(RegistroDto dto) {
+    public Tenant register(RegistroDto dto) {
         Invitation invite = invitationService.getInviteByEmail(dto.getEmail());
         AppUser appUser = userRepository.findByEmail(dto.getEmail());
         if (invite == null) {
@@ -109,6 +109,9 @@ public class RegistroServiceImpl implements RegistroService {
                     .build();
         }
         tenantRepository.save(tenant);
+        String UIDTenant = generateUID(tenant);
+        tenant.setUIDTenant(UIDTenant);
+        tenantRepository.save(tenant);
 
         // c) Obtener rol "tenant_admin"
         Role role = roleRepository.findByName("tenant_admin");
@@ -141,14 +144,34 @@ public class RegistroServiceImpl implements RegistroService {
         preRegistroRepository.save(preRegistro);
 
         // Initiate payment process INITIATED Status
-        TenantPayment tenantPayment = TenantPayment.builder()
-                .tenant(tenant)
-                .plan(dto.getPlan())
-                .status(PaymentStatus.INITIATED.getStatus())
-                .startDate(LocalDateTime.now())
-                .endDate(LocalDateTime.now().plusMonths(1)) // assuming monthly plan
-                .build();
+        TenantPayment tenantPayment = tenantPaymentRepository.findByUIDTenant(UIDTenant);
+        if(tenantPayment == null){
+            tenantPayment = TenantPayment.builder()
+                    .tenant(tenant)
+                    .plan(dto.getPlan())
+                    .status(PaymentStatus.INITIATED.getStatus())
+                    .name(appUser.getFullName())
+                    .description("Payment initiated")
+                    .startDate(LocalDateTime.now())
+                    .endDate(LocalDateTime.now().plusMonths(1)) // assuming monthly plan
+                    .UIDTenant(generateUID(tenant))
+                    .build();
+        }else{
+            tenantPayment.setName(appUser.getFullName());
+            tenantPayment.setDescription("Payment initiated");
+            tenantPayment.setStartDate(LocalDateTime.now());
+            tenantPayment.setEndDate(LocalDateTime.now().plusMonths(1));
+        }
+
         tenantPaymentRepository.save(tenantPayment);
+
+        return tenant;
+    }
+
+    private String generateUID(Tenant tenant) {
+        String namePart = tenant.getNombreNegocio().toLowerCase().replaceAll("[^a-z0-9]+", "-");
+        String uniqueId = String.valueOf(tenant.getId());
+        return namePart + "-" + uniqueId;
     }
 
     @Override
@@ -173,6 +196,7 @@ public class RegistroServiceImpl implements RegistroService {
                 .status(dto.getStatus())
                 .startDate(LocalDateTime.now())
                 .endDate(LocalDateTime.now())
+                .name(user.getNombre() + " " + user.getPaterno() + " " + user.getMaterno())
                 .build();
         tenantPaymentRepository.save(payment);
     }

@@ -23,6 +23,8 @@ public class Tenant {
     private String direccion;
     private String telefono;
     private String tipoNegocio;
+    private String slug;
+    private String UIDTenant;
     @Builder.Default
     private boolean isActive = true;
     @Builder.Default
