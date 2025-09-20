@@ -21,6 +21,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class PreRegistroServiceImpl implements PreRegistroService {
 
+    public static final String INVITED = "INVITED";
     private final Emailservice emailservice;
     private final InvitationService invitationService;
     private final SendGridTemplates sendGridTemplates;
@@ -38,7 +39,8 @@ public class PreRegistroServiceImpl implements PreRegistroService {
         PreRegistro preRegistro = PreRegistro.builder()
                 .nombre(dto.getNombre())
                 .email(dto.getEmail())
-                .status("INVITED")
+                .status(INVITED)
+                .description("Send invitation email")
                 .fechaRegistro(LocalDateTime.now())
                 .build();
         var response = preRegistroRepository.save(preRegistro);

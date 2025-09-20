@@ -5,6 +5,7 @@ import lombok.*;
 
 @Data
 @Builder
+@Getter
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
@@ -26,8 +27,11 @@ public class TenantPayment {
     private java.time.LocalDateTime startDate;
     private java.time.LocalDateTime endDate;
     private String description;
+    private String name;
+    private String UIDTenant;
     @Builder.Default
     private java.time.LocalDateTime createdAt = java.time.LocalDateTime.now();
+    private java.time.LocalDateTime updatedAt;
 
     @PrePersist
     protected void onCreate() {

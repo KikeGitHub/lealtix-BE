@@ -19,6 +19,7 @@ public class AppUser {
     private String nombre;
     private String paterno;
     private String materno;
+    private String fullName;
     private LocalDate fechaNacimiento;
     private String telefono;
     @Column(unique = true)
@@ -41,5 +42,20 @@ public class AppUser {
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
     }
+
+    public String getFullName() {
+        StringBuilder sb = new StringBuilder();
+        if (nombre != null) sb.append(nombre);
+        if (paterno != null) {
+            if (sb.length() > 0) sb.append(" ");
+            sb.append(paterno);
+        }
+        if (materno != null) {
+            if (sb.length() > 0) sb.append(" ");
+            sb.append(materno);
+        }
+        return sb.toString();
+    }
+
 }
 
