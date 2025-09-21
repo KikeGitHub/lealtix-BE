@@ -29,6 +29,10 @@ public class TenantPayment {
     private String description;
     private String name;
     private String UIDTenant;
+    private Long amount; // in cents
+    private String stripePaymentId;
+    private String stripeMode;
+    private String userEmail;
     @Builder.Default
     private java.time.LocalDateTime createdAt = java.time.LocalDateTime.now();
     private java.time.LocalDateTime updatedAt;

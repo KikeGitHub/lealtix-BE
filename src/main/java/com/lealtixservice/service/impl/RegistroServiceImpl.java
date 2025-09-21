@@ -144,7 +144,7 @@ public class RegistroServiceImpl implements RegistroService {
         preRegistroRepository.save(preRegistro);
 
         // Initiate payment process INITIATED Status
-        TenantPayment tenantPayment = tenantPaymentRepository.findByUIDTenant(UIDTenant);
+        TenantPayment tenantPayment = tenantPaymentRepository.findByUIDTenantAndStatus(UIDTenant, "INITIATED");
         if(tenantPayment == null){
             tenantPayment = TenantPayment.builder()
                     .tenant(tenant)
@@ -155,6 +155,7 @@ public class RegistroServiceImpl implements RegistroService {
                     .startDate(LocalDateTime.now())
                     .endDate(LocalDateTime.now().plusMonths(1)) // assuming monthly plan
                     .UIDTenant(generateUID(tenant))
+                    .userEmail(dto.getEmail())
                     .build();
         }else{
             tenantPayment.setName(appUser.getFullName());
