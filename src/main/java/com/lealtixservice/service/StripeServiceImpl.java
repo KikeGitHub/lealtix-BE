@@ -1,8 +1,12 @@
 package com.lealtixservice.service;
 
+import com.lealtixservice.config.SendGridTemplates;
+import com.lealtixservice.dto.EmailDTO;
 import com.lealtixservice.dto.PagoDto;
+import com.lealtixservice.entity.PreRegistro;
 import com.lealtixservice.entity.Tenant;
 import com.lealtixservice.entity.TenantPayment;
+import com.lealtixservice.repository.PreRegistroRepository;
 import com.lealtixservice.repository.TenantPaymentRepository;
 import com.lealtixservice.repository.TenantRepository;
 import com.lealtixservice.util.DateUtils;
@@ -20,6 +24,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -30,18 +35,27 @@ import java.util.Map;
 public class StripeServiceImpl implements StripeService {
 
     private static final Logger log = LoggerFactory.getLogger(StripeServiceImpl.class);
+    public static final String COMPLETED = "COMPLETED";
+    private final SendGridTemplates sendGridTemplates;
     @Autowired
     private TenantPaymentRepository tenantPaymentRepository;
 
     @Autowired
     private TenantRepository tenantRepository;
 
+    @Autowired
+    private PreRegistroRepository preRegistroRepository;
+
+    @Autowired
+    private Emailservice emailservice;
+
     private Price lastCreatedPrice;;
 
     @Value("${stripe.api.key}")
     private String apiKey;
 
-    public StripeServiceImpl(@Value("${stripe.api.key}") String apiKey) {
+    public StripeServiceImpl(@Value("${stripe.api.key}") String apiKey, SendGridTemplates sendGridTemplates) {
+        this.sendGridTemplates = sendGridTemplates;
         Stripe.apiKey = apiKey;
     }
 
@@ -102,7 +116,7 @@ public class StripeServiceImpl implements StripeService {
             PagoDto pagoDto = null;
             Session session = Session.retrieve(sessionId);
             String tenantId = session.getClientReferenceId();
-            TenantPayment tenantPayment = tenantPaymentRepository.findByUIDTenant(tenantId);
+            TenantPayment tenantPayment = tenantPaymentRepository.findByUIDTenantAndStatus(tenantId, "INITIATED");
             if (tenantPayment != null) {
                 pagoDto = new PagoDto();
                 pagoDto.setPlan(tenantPayment.getPlan());
@@ -113,9 +127,55 @@ public class StripeServiceImpl implements StripeService {
                 pagoDto.setPaymentDate(DateUtils.formatDatefromLong(session.getCreated()));
                 pagoDto.setNextPaymentDate(DateUtils.formatDatefromLongNext(session.getCreated()));
                 pagoDto.setLink(createSlug(tenantPayment.getTenant()));
+                // Actualizar estado del pago
+                TenantPayment tp = new TenantPayment();
+                tp.setCreatedAt(LocalDateTime.now());
+                tp.setEndDate(tenantPayment.getEndDate());
+                tp.setPlan(tenantPayment.getPlan());
+                tp.setStartDate(tenantPayment.getStartDate());
+                tp.setTenant(tenantPayment.getTenant());
+                tp.setName(tenantPayment.getName());
+                tp.setUIDTenant(tenantPayment.getUIDTenant());
+                tp.setDescription("Successful payment");
+                tp.setStripeCustomerId(session.getCustomer());
+                tp.setStatus(session.getPaymentStatus());
+                tp.setUpdatedAt(LocalDateTime.now());
+                tp.setAmount(session.getAmountTotal());
+                tp.setStripePaymentId(session.getId());
+                tp.setStripeMode(session.getMode());
+                tp.setStripePaymentMethodId(session.getPaymentMethodConfigurationDetails().getId());
+                tp.setUserEmail(tenantPayment.getUserEmail());
+                tenantPaymentRepository.save(tp);
+                // Activa tenant
+                Tenant tenant = tenantPayment.getTenant();
+                tenant.setActive(true);
+                tenantRepository.save(tenant);
+                PreRegistro preRegistro = preRegistroRepository.findByEmail(tenantPayment.getUserEmail()).orElse(null);
+                if (preRegistro == null) {
+                    log.error("PreRegistro not found for email: {}", session.getCustomerEmail());
+                }else{
+                    preRegistro.setStatus(COMPLETED); // Payment completed
+                    preRegistro.setDescription("Payment completed by Stripe");
+                    preRegistro.setUpdatedDate(LocalDateTime.now());
+                    preRegistroRepository.save(preRegistro);
+                }
+                // Enviar email de bienvenida
+                EmailDTO emailDTO = EmailDTO.builder()
+                        .to(tenantPayment.getUserEmail())
+                        .subject("Gracias por registrarte en Lealtix")
+                        .templateId(sendGridTemplates.getWelcomeTemplate())
+                        .dynamicData(Map.of(
+                                "name", tenantPayment.getName(),
+                                "link", "https://app.lealtix.com/" + tenant.getSlug() + "/dashboard",
+                                "logoUrl", "http://cdn.mcauto-images-production.sendgrid.net/b30f9991de8e45d3/af636f80-aa14-4886-9b12-ff4865e26908/627x465.png",
+                                "password", "123qwe...",
+                                "username", tenantPayment.getUserEmail()
+                        ))
+                        .build();
+                emailservice.sendEmailWithTemplate(emailDTO);
             }
             return pagoDto;
-        } catch (StripeException e) {
+        } catch (StripeException | IOException e) {
             log.error("Error retrieving checkout session: {}", e.getMessage());
             return null;
         }
@@ -127,7 +187,7 @@ public class StripeServiceImpl implements StripeService {
             PagoDto pagoDto = null;
             Session session = Session.retrieve(sessionId);
             String tenantId = session.getClientReferenceId();
-            TenantPayment tenantPayment = tenantPaymentRepository.findByUIDTenant(tenantId);
+            TenantPayment tenantPayment = tenantPaymentRepository.findByUIDTenantAndStatus(tenantId, "INITIATED");
             if (tenantPayment != null) {
                 pagoDto = new PagoDto();
                 pagoDto.setName(tenantPayment.getName());
