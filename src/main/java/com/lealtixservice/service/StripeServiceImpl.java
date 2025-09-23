@@ -166,7 +166,7 @@ public class StripeServiceImpl implements StripeService {
                         .templateId(sendGridTemplates.getWelcomeTemplate())
                         .dynamicData(Map.of(
                                 "name", tenantPayment.getName(),
-                                "link", "https://app.lealtix.com/" + tenant.getSlug() + "/dashboard",
+                                "link", "http://localhost:4200/landing-page/demo",
                                 "logoUrl", "http://cdn.mcauto-images-production.sendgrid.net/b30f9991de8e45d3/af636f80-aa14-4886-9b12-ff4865e26908/627x465.png",
                                 "password", "123qwe...",
                                 "username", tenantPayment.getUserEmail()
