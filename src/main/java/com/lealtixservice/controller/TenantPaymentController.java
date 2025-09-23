@@ -2,22 +2,19 @@ package com.lealtixservice.controller;
 
 import com.lealtixservice.dto.GenericResponse;
 import com.lealtixservice.dto.PagoDto;
-import com.lealtixservice.entity.Tenant;
 import com.lealtixservice.entity.TenantPayment;
-import com.lealtixservice.enums.PaymentStatus;
 import com.lealtixservice.service.TenantPaymentService;
-import com.lealtixservice.service.TenantService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
-
+@Tag(name = "Tenant Payment", description = "Operaciones para pagos y gestión de tenant_payment")
 @RestController
 @RequestMapping("/api/tenant-payment")
 @RequiredArgsConstructor
@@ -27,6 +24,7 @@ public class TenantPaymentController {
     @Autowired
     private TenantPaymentService tenantService;
 
+    @Operation(summary = "Crear intento de pago", description = "Crea un intento de pago y lo asocia al tenant en la tabla tenant_payment.")
     @PostMapping("/intent")
     public ResponseEntity<GenericResponse> intentPayment(@RequestBody PagoDto pagoDto, @RequestParam("status") String status) {
         try {

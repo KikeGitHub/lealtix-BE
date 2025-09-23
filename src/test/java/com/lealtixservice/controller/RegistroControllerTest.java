@@ -2,6 +2,7 @@ package com.lealtixservice.controller;
 
 import com.lealtixservice.dto.GenericResponse;
 import com.lealtixservice.dto.RegistroDto;
+import com.lealtixservice.entity.Tenant;
 import com.lealtixservice.service.RegistroService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -30,11 +31,13 @@ class RegistroControllerTest {
     @Test
     void register_success() {
         RegistroDto dto = new RegistroDto();
-        doNothing().when(registroService).register(dto);
+        Tenant tenant = new Tenant();
+        tenant.setUIDTenant("UID123");
+        when(registroService.register(dto)).thenReturn(tenant);
 
         ResponseEntity<GenericResponse> response = registroController.register(dto);
         assertEquals(HttpStatus.CREATED, response.getStatusCode());
-        assertEquals(new GenericResponse(201, "SUCCESS", null), response.getBody());
+        assertEquals(new GenericResponse(200, "SUCCESS", "UID123"), response.getBody());
         verify(registroService, times(1)).register(dto);
     }
 
