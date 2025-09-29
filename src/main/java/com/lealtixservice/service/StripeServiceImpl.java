@@ -49,6 +49,9 @@ public class StripeServiceImpl implements StripeService {
     @Autowired
     private Emailservice emailservice;
 
+    @Autowired
+    private TokenService tokenService;
+
     private Price lastCreatedPrice;;
 
     @Value("${stripe.api.key}")
@@ -159,6 +162,8 @@ public class StripeServiceImpl implements StripeService {
                     preRegistro.setUpdatedDate(LocalDateTime.now());
                     preRegistroRepository.save(preRegistro);
                 }
+                String jwtToken = tokenService.generateToken(tenant.getId(),session.getCustomerEmail());
+                log.info("Generated JWT Token for tenantId {}: {}", tenant.getId(), jwtToken);
                 // Enviar email de bienvenida
                 EmailDTO emailDTO = EmailDTO.builder()
                         .to(tenantPayment.getUserEmail())
@@ -166,7 +171,7 @@ public class StripeServiceImpl implements StripeService {
                         .templateId(sendGridTemplates.getWelcomeTemplate())
                         .dynamicData(Map.of(
                                 "name", tenantPayment.getName(),
-                                "link", "http://localhost:4200/landing-page/demo",
+                                "link", "http://localhost:4200/admin/wizard?token="+jwtToken,
                                 "logoUrl", "http://cdn.mcauto-images-production.sendgrid.net/b30f9991de8e45d3/af636f80-aa14-4886-9b12-ff4865e26908/627x465.png",
                                 "password", "123qwe...",
                                 "username", tenantPayment.getUserEmail()

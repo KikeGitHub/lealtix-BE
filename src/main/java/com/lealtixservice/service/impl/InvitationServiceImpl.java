@@ -85,9 +85,7 @@ public class InvitationServiceImpl implements InvitationService {
                 if(tenantUser.getTenant() != null){
                     Tenant tenant = tenantUser.getTenant();
                     // Token usado con registro de tenant mapear todo el objeto
-                    registroDto.setNombre(user.getNombre());
-                    registroDto.setPaterno(user.getPaterno());
-                    registroDto.setMaterno(user.getMaterno());
+                    registroDto.setFullName(user.getFullName());
                     registroDto.setFechaNacimiento(user.getFechaNacimiento());
                     registroDto.setTelefono(user.getTelefono());
                     registroDto.setEmail(user.getEmail());
@@ -109,10 +107,7 @@ public class InvitationServiceImpl implements InvitationService {
             response.setEmail(invitation.getEmail());
             PreRegistro preRegistro = preRegistroRepository.findByEmail(invitation.getEmail()).orElse(null);
             if(preRegistro != null) {
-                String[] array = splitNombreCompleto(preRegistro.getNombre());
-                registroDto.setNombre(array[0]);
-                registroDto.setPaterno(array[1]);
-                registroDto.setMaterno(array[2]);
+                registroDto.setFullName(preRegistro.getNombre());
                 registroDto.setEmail(preRegistro.getEmail());
                 response.setRegistroDto(registroDto);
             }
@@ -123,21 +118,6 @@ public class InvitationServiceImpl implements InvitationService {
         return response;
     }
 
-    private static String[] splitNombreCompleto(String nombreCompleto) {
-        if (nombreCompleto == null || nombreCompleto.trim().isEmpty()) {
-            return new String[]{"", "", ""};
-        }
-        String[] partes = nombreCompleto.trim().split("\\s+");
-        if (partes.length < 3) {
-            // Si solo hay dos partes, asumimos nombre y un apellido
-            return new String[]{partes[0], partes.length > 1 ? partes[1] : "", ""};
-        }
-        // Los dos últimos son apellidos, el resto es nombre
-        String nombre = String.join(" ", java.util.Arrays.copyOfRange(partes, 0, partes.length - 2));
-        String paterno = partes[partes.length - 2];
-        String materno = partes[partes.length - 1];
-        return new String[]{nombre, paterno, materno};
-    }
 
     @Override
     public Invitation getInviteByEmail(String email) {

@@ -16,9 +16,6 @@ public class AppUser {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String nombre;
-    private String paterno;
-    private String materno;
     private String fullName;
     private LocalDate fechaNacimiento;
     private String telefono;
@@ -43,19 +40,6 @@ public class AppUser {
         updatedAt = LocalDateTime.now();
     }
 
-    public String getFullName() {
-        StringBuilder sb = new StringBuilder();
-        if (nombre != null) sb.append(nombre);
-        if (paterno != null) {
-            if (sb.length() > 0) sb.append(" ");
-            sb.append(paterno);
-        }
-        if (materno != null) {
-            if (sb.length() > 0) sb.append(" ");
-            sb.append(materno);
-        }
-        return sb.toString();
-    }
 
 }
 

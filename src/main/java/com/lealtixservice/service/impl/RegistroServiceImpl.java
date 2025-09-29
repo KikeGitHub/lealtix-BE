@@ -70,17 +70,13 @@ public class RegistroServiceImpl implements RegistroService {
         // a) Crear AppUser
         if(appUser != null){
            // modificar usuario existente
-           appUser.setNombre(dto.getNombre());
-           appUser.setPaterno(dto.getPaterno());
-           appUser.setMaterno(dto.getMaterno());
+           appUser.setFullName(dto.getFullName());
            appUser.setFechaNacimiento(dto.getFechaNacimiento());
            appUser.setTelefono(dto.getTelefono());
            appUser.setPasswordHash(passwordEncoder.encode(dto.getPassword()));
         }else{ // nuevo usuario
             appUser = AppUser.builder()
-                .nombre(dto.getNombre())
-                .paterno(dto.getPaterno())
-                .materno(dto.getMaterno())
+                .fullName(dto.getFullName())
                 .fechaNacimiento(dto.getFechaNacimiento())
                 .telefono(dto.getTelefono())
                 .email(dto.getEmail())
@@ -197,7 +193,7 @@ public class RegistroServiceImpl implements RegistroService {
                 .status(dto.getStatus())
                 .startDate(LocalDateTime.now())
                 .endDate(LocalDateTime.now())
-                .name(user.getNombre() + " " + user.getPaterno() + " " + user.getMaterno())
+                .name(user.getFullName())
                 .build();
         tenantPaymentRepository.save(payment);
     }

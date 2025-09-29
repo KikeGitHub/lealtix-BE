@@ -11,10 +11,8 @@ import java.time.LocalDate;
 @Setter
 public class RegistroDto {
     // Datos de usuario (admin)
-    private String nombre;
-    private String paterno;
-    private String materno;
-    private LocalDate fechaNacimiento;
+    private String fullName;
+   private LocalDate fechaNacimiento;
     private String telefono;
     private String email;
     private String password;

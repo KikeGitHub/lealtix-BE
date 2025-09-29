@@ -107,7 +107,7 @@ public class TenantPaymentServiceImpl implements TenantPaymentService {
                 .subject("Bienvenido a Lealtix")
                 .templateId(sendGridTemplates.getWelcomeTemplate())
                 .dynamicData(Map.of(
-                        "name", user.getNombre() + " " + user.getPaterno() + " " + user.getMaterno(),
+                        "name", user.getFullName(),
                         "username", pagoDto.getEmail(),
                         "password", user.getPasswordHash(),
                         "link", "https://app.lealtix.com/login",
