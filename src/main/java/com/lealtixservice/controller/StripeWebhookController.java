@@ -4,6 +4,8 @@ import com.lealtixservice.service.StripeWebhookService;
 import com.stripe.exception.SignatureVerificationException;
 import com.stripe.model.Event;
 import com.stripe.net.Webhook;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -17,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.io.BufferedReader;
 import java.io.IOException;
 
+@Tag(name = "Stripe Webhook", description = "Endpoints para recibir y procesar webhooks de Stripe")
 @RestController
 @RequestMapping("/stripe")
 public class StripeWebhookController {
@@ -27,6 +30,7 @@ public class StripeWebhookController {
     @Autowired
     private StripeWebhookService stripeWebhookService;
 
+    @Operation(summary = "Recibe eventos webhook de Stripe", description = "Recibe y procesa eventos enviados por Stripe. Verifica la firma y maneja los eventos principales.")
     @PostMapping("/webhook")
     public ResponseEntity<String> handleStripeWebhook(HttpServletRequest request,
                                                       @RequestHeader(name = "Stripe-Signature", required = false) String sigHeader) {

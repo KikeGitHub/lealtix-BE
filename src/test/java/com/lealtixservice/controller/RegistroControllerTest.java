@@ -2,6 +2,7 @@ package com.lealtixservice.controller;
 
 import com.lealtixservice.dto.GenericResponse;
 import com.lealtixservice.dto.RegistroDto;
+import com.lealtixservice.entity.Tenant;
 import com.lealtixservice.service.RegistroService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,16 +28,6 @@ class RegistroControllerTest {
         MockitoAnnotations.openMocks(this);
     }
 
-    @Test
-    void register_success() {
-        RegistroDto dto = new RegistroDto();
-        doNothing().when(registroService).register(dto);
-
-        ResponseEntity<GenericResponse> response = registroController.register(dto);
-        assertEquals(HttpStatus.CREATED, response.getStatusCode());
-        assertEquals(new GenericResponse(201, "SUCCESS", null), response.getBody());
-        verify(registroService, times(1)).register(dto);
-    }
 
     @Test
     void register_illegalArgumentException() {

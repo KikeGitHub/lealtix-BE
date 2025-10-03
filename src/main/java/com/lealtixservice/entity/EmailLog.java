@@ -33,12 +33,14 @@ public class EmailLog {
     @Column(name = "sendgrid_message_id", length = 255)
     private String sendgridMessageId;
 
+    @Builder.Default
     @Column(nullable = false, length = 50)
     private String status = "pending";
 
     @Column(name = "error_message", columnDefinition = "TEXT")
     private String errorMessage;
 
+    @Builder.Default
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 

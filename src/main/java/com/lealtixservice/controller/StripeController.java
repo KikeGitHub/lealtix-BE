@@ -7,6 +7,8 @@ import com.lealtixservice.dto.CheckoutSessionRequest;
 import com.stripe.model.Product;
 import com.stripe.model.Price;
 import com.lealtixservice.service.StripeService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -14,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
+@Tag(name = "Stripe", description = "Operaciones relacionadas con Stripe: productos, precios y sesiones de pago")
 @RestController
 @RequestMapping("/api/stripe")
 public class StripeController {
@@ -21,6 +24,7 @@ public class StripeController {
     @Autowired
     private StripeService stripeService;
 
+    @Operation(summary = "Crear producto y precio en Stripe", description = "Crea un producto y un precio en Stripe usando los datos proporcionados.")
     @PostMapping("/product-with-price")
     public ResponseEntity<?> createProductWithPrice(@RequestBody ProductPriceRequest request) {
         try {
@@ -32,6 +36,7 @@ public class StripeController {
         }
     }
 
+    @Operation(summary = "Crear sesión de checkout en Stripe", description = "Crea una sesión de checkout en Stripe para el pago.")
     @PostMapping("/create-checkout-session")
     public ResponseEntity<?> createCheckoutSession(@RequestBody CheckoutSessionRequest request) {
         try {
@@ -42,6 +47,7 @@ public class StripeController {
         }
     }
 
+    @Operation(summary = "Obtener sesión de checkout", description = "Obtiene los detalles de una sesión de checkout de Stripe por su ID.")
     @GetMapping("/checkout-session/{sessionId}")
     public ResponseEntity<GenericResponse> getCheckoutSession(@PathVariable String sessionId) {
         try {
@@ -59,6 +65,7 @@ public class StripeController {
         }
     }
 
+    @Operation(summary = "Obtener sesión de checkout cancelada", description = "Obtiene los detalles de una sesión de checkout cancelada de Stripe por su ID.")
     @GetMapping("/checkout-cancel/{sessionId}")
     public ResponseEntity<GenericResponse> getCheckoutCancel(@PathVariable String sessionId) {
         try {
