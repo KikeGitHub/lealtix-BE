@@ -1,11 +1,13 @@
 package com.lealtixservice.service.impl;
 
 import com.lealtixservice.dto.AppUserDTO;
-import com.lealtixservice.dto.TenantUserDTO;
+import com.lealtixservice.dto.TenantWizardDTO;
 import com.lealtixservice.entity.AppUser;
-import com.lealtixservice.entity.TenantUser;
+import com.lealtixservice.entity.Tenant;
+import com.lealtixservice.entity.TenantConfig;
 import com.lealtixservice.repository.AppUserRepository;
-import com.lealtixservice.repository.TenantUserRepository;
+import com.lealtixservice.repository.TenantConfigRepository;
+import com.lealtixservice.repository.TenantRepository;
 import com.lealtixservice.service.AppUserService;
 import com.lealtixservice.service.TokenService;
 import com.lealtixservice.util.EncrypUtils;
@@ -13,7 +15,6 @@ import com.lealtixservice.util.TenantUserMapper;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jws;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -34,7 +35,10 @@ public class AppUserServiceImpl implements AppUserService {
     private TokenService tokenService;
 
     @Autowired
-    private TenantUserRepository tenantUserRepository;
+    private TenantRepository tenantRepository;
+
+    @Autowired
+    private TenantConfigRepository tenantConfigRepository;
 
     @Override
     public AppUser save(AppUser user) {
@@ -96,19 +100,24 @@ public class AppUserServiceImpl implements AppUserService {
     }
 
     @Override
-    public TenantUserDTO getTenantUserByToken(String token) {
+    public TenantWizardDTO getTenantUserByToken(String token) {
         Jws<Claims> claims = tokenService.validateToken(token);
+        TenantWizardDTO resp = new TenantWizardDTO();
         if (claims != null) {
             String email = claims.getBody().get("email", String.class);
             AppUser user = findByEmail(email).orElseThrow(
                     () -> new RuntimeException("User not found with email " + email)
             );
-            TenantUser tenUser = tenantUserRepository.findByUserId(user.getId());
-            if (tenUser == null) {
-                return null;
-            } else {
-                return TenantUserMapper.toDTO(tenUser);
+            resp.setUser(TenantUserMapper.toAppUserDTO(user));
+            Tenant tenant = tenantRepository.findByAppUserId(user.getId()).orElse(null);
+            if(tenant != null){
+                resp.setTenant(TenantUserMapper.toTenantDTO(tenant));
+                TenantConfig tenantConfig = tenantConfigRepository.findByTenantId(tenant.getId());
+                if(tenantConfig != null){
+                    resp.setTenantConfig(TenantUserMapper.toTenantConfigDTO(tenantConfig));
+                }
             }
+            return resp;
         }
         return null;
     }

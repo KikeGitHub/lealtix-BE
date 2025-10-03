@@ -13,7 +13,7 @@ import java.util.List;
 
 @Tag(name = "TenantConfig", description = "Operaciones para la configuración del tenant")
 @RestController
-@RequestMapping("/tenant-config")
+@RequestMapping("/api/tenant-config")
 @RequiredArgsConstructor
 public class TenantConfigController {
 

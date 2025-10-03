@@ -21,9 +21,22 @@ public class TenantConfigServiceImpl implements TenantConfigService {
     @Override
     public TenantConfigDTO saveTenantConfig(TenantConfigDTO dto) {
         Tenant tenant = tenantRepository.findById(dto.getTenantId()).orElse(null);
+        TenantConfig tenantConfig = null;
         if (tenant == null) return null;
-        TenantConfig entity = toEntity(dto, tenant);
-        TenantConfig saved = tenantConfigRepository.save(entity);
+        tenantConfig = tenantConfigRepository.findByTenantId(tenant.getId());
+        if(tenantConfig != null) {
+            tenantConfig.setBussinesEmail(dto.getBussinesEmail() == null || dto.getBussinesEmail().isBlank() ? tenantConfig.getBussinesEmail() : dto.getBussinesEmail());
+            tenantConfig.setHistory(dto.getHistory() == null || dto.getHistory().isBlank() ? tenantConfig.getHistory() : dto.getHistory());
+            tenantConfig.setVision(dto.getVision() == null || dto.getVision().isBlank() ? tenantConfig.getVision() : dto.getVision());
+            tenantConfig.setFacebook(dto.getFacebook() == null || dto.getFacebook().isBlank() ? tenantConfig.getFacebook() : dto.getFacebook());
+            tenantConfig.setInstagram(dto.getInstagram() == null || dto.getInstagram().isBlank() ? tenantConfig.getInstagram() : dto.getInstagram());
+            tenantConfig.setLinkedin(dto.getLinkedin() == null || dto.getLinkedin().isBlank() ? tenantConfig.getLinkedin() : dto.getLinkedin());
+            tenantConfig.setTiktok(dto.getTiktok() == null || dto.getTiktok().isBlank() ? tenantConfig.getTiktok() : dto.getTiktok());
+            tenantConfig.setTwitter(dto.getTwitter() == null || dto.getTwitter().isBlank() ? tenantConfig.getTwitter() : dto.getTwitter());
+        }else{
+            tenantConfig = toEntity(dto, tenant);
+        }
+        TenantConfig saved = tenantConfigRepository.save(tenantConfig);
         return toDTO(saved);
     }
 
@@ -44,12 +57,8 @@ public class TenantConfigServiceImpl implements TenantConfigService {
         return TenantConfigDTO.builder()
                 .id(entity.getId())
                 .tenantId(entity.getTenant().getId())
-                .tipoNegocio(entity.getTipoNegocio())
-                .since(entity.getSince())
-                .imgLogo(entity.getImgLogo())
-                .story(entity.getStory())
+                .history(entity.getHistory())
                 .vision(entity.getVision())
-                .listVision(entity.getListVision())
                 .bussinesEmail(entity.getBussinesEmail())
                 .twitter(entity.getTwitter())
                 .facebook(entity.getFacebook())
@@ -58,9 +67,6 @@ public class TenantConfigServiceImpl implements TenantConfigService {
                 .tiktok(entity.getTiktok())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
-                .schedules(entity.getSchedules() != null ? entity.getSchedules().stream()
-                    .map(s -> TenantConfigDTO.ScheduleDTO.builder().day(s.getDay()).hours(s.getHours()).build())
-                    .collect(Collectors.toList()) : null)
                 .build();
     }
 
@@ -68,12 +74,8 @@ public class TenantConfigServiceImpl implements TenantConfigService {
         TenantConfig entity = TenantConfig.builder()
                 .id(dto.getId())
                 .tenant(tenant)
-                .tipoNegocio(dto.getTipoNegocio())
-                .since(dto.getSince())
-                .imgLogo(dto.getImgLogo())
-                .story(dto.getStory())
+                .history(dto.getHistory())
                 .vision(dto.getVision())
-                .listVision(dto.getListVision())
                 .bussinesEmail(dto.getBussinesEmail())
                 .twitter(dto.getTwitter())
                 .facebook(dto.getFacebook())
@@ -81,12 +83,6 @@ public class TenantConfigServiceImpl implements TenantConfigService {
                 .instagram(dto.getInstagram())
                 .tiktok(dto.getTiktok())
                 .build();
-        if (dto.getSchedules() != null) {
-            entity.setSchedules(dto.getSchedules().stream()
-                .map(s -> new TenantConfig.Schedule(s.getDay(), s.getHours()))
-                .collect(Collectors.toList()));
-        }
         return entity;
     }
 }
-

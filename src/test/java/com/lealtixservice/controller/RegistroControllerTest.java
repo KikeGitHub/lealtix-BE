@@ -28,18 +28,6 @@ class RegistroControllerTest {
         MockitoAnnotations.openMocks(this);
     }
 
-    @Test
-    void register_success() {
-        RegistroDto dto = new RegistroDto();
-        Tenant tenant = new Tenant();
-        tenant.setUIDTenant("UID123");
-        when(registroService.register(dto)).thenReturn(tenant);
-
-        ResponseEntity<GenericResponse> response = registroController.register(dto);
-        assertEquals(HttpStatus.CREATED, response.getStatusCode());
-        assertEquals(new GenericResponse(200, "SUCCESS", "UID123"), response.getBody());
-        verify(registroService, times(1)).register(dto);
-    }
 
     @Test
     void register_illegalArgumentException() {

@@ -25,6 +25,19 @@ public class Tenant {
     private String tipoNegocio;
     private String slug;
     private String UIDTenant;
+    private String schedules;
+
+    @OneToOne
+    @JoinColumn(name = "user_id", referencedColumnName = "id")
+    private AppUser appUser;
+
+    @Column(name = "logo_url")
+    private String logoUrl;
+
+    @Column(name = "slogan")
+    private String slogan;
+
+
     @Builder.Default
     private boolean isActive = true;
     @Builder.Default

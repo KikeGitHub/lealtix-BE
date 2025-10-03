@@ -3,8 +3,10 @@ package com.lealtixservice.controller;
 import com.lealtixservice.dto.RegistroDto;
 import com.lealtixservice.dto.PagoDto;
 import com.lealtixservice.dto.GenericResponse;
+import com.lealtixservice.entity.AppUser;
 import com.lealtixservice.entity.Tenant;
 import com.lealtixservice.service.RegistroService;
+import com.lealtixservice.util.MapperUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -31,9 +33,9 @@ public class RegistroController {
     @PostMapping("/register")
     public ResponseEntity<GenericResponse> register(@RequestBody RegistroDto registroDto) {
        try {
-            Tenant tenant=  registroService.register(registroDto);
+            AppUser appUser =  registroService.register(registroDto);
             return ResponseEntity.status(HttpStatus.CREATED)
-                .body(new GenericResponse(200, "SUCCESS", tenant.getUIDTenant()));
+                .body(new GenericResponse(200, "SUCCESS", MapperUtils.toAppUserDTO(appUser)));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(new GenericResponse(500, e.getMessage(), null));

@@ -16,14 +16,20 @@ import java.time.LocalDateTime;
 @Builder
 public class TenantDTO {
     private Long id;
+    private Long userId;
     private String nombreNegocio;
     private String direccion;
     private String telefono;
     private String tipoNegocio;
     private String slug;
+    private String logoUrl;
+    private String slogan;
     private String UIDTenant;
     private boolean isActive;
+    private String schedules;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+
 }
 

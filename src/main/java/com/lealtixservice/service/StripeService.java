@@ -1,6 +1,7 @@
 package com.lealtixservice.service;
 
 import com.lealtixservice.dto.PagoDto;
+import com.stripe.exception.StripeException;
 import com.stripe.model.Product;
 import com.stripe.model.Price;
 import com.lealtixservice.dto.ProductPriceRequest;
@@ -11,7 +12,7 @@ public interface StripeService {
     Price getLastCreatedPrice();
     Map<String, Object> createCheckoutSession(String priceId, String tenantId) throws Exception;
 
-    PagoDto getCheckoutSession(String sessionId);
+    PagoDto getCheckoutSession(String sessionId) throws StripeException;
 
     PagoDto getCheckoutSessionCancel(String sessionId);
 }

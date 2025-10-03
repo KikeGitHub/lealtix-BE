@@ -19,34 +19,17 @@ public class TenantConfig {
     @JoinColumn(name = "tenant_id")
     private Tenant tenant;
 
-    private String tipoNegocio;
-
-    @Column(length = 15)
-    private String since;
-
-    private String imgLogo;
-
-    @Column(length = 500)
-    private String story;
-
+   @Column(length = 500)
+    private String history;
     @Column(length = 500)
     private String vision;
-
-    @ElementCollection
-    @CollectionTable(name = "tenant_config_list_vision", joinColumns = @JoinColumn(name = "tenant_config_id"))
-    @Column(name = "vision_component", length = 200)
-    private List<String> listVision;
-
     private String bussinesEmail;
     private String twitter;
     private String facebook;
     private String linkedin;
     private String instagram;
     private String tiktok;
-
-    @ElementCollection
-    @CollectionTable(name = "tenant_config_schedules", joinColumns = @JoinColumn(name = "tenant_config_id"))
-    private List<Schedule> schedules;
+    private String schedules;
 
     @Builder.Default
     private java.time.LocalDateTime createdAt = java.time.LocalDateTime.now();
@@ -60,14 +43,5 @@ public class TenantConfig {
     @PreUpdate
     protected void onUpdate() {
         updatedAt = java.time.LocalDateTime.now();
-    }
-
-    @Embeddable
-    @Data
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class Schedule {
-        private String day;
-        private String hours;
     }
 }

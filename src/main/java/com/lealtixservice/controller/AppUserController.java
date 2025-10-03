@@ -2,12 +2,8 @@ package com.lealtixservice.controller;
 
 import com.lealtixservice.dto.AppUserDTO;
 import com.lealtixservice.dto.GenericResponse;
-import com.lealtixservice.dto.TenantUserDTO;
 import com.lealtixservice.entity.AppUser;
-import com.lealtixservice.entity.TenantUser;
 import com.lealtixservice.service.AppUserService;
-import com.lealtixservice.service.TenantUserService;
-import com.lealtixservice.util.TenantUserMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,9 +21,6 @@ public class AppUserController {
 
     @Autowired
     private  AppUserService appUserService;
-
-    @Autowired
-    private TenantUserService tenantUserService;
 
    @Operation(summary = "Crear un nuevo usuario")
     @PostMapping
@@ -83,10 +76,5 @@ public class AppUserController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(new GenericResponse(500, e.getMessage(), null));
         }
-    }
-
-
-    private TenantUserDTO toDTO(TenantUser entity) {
-        return TenantUserMapper.toDTO(entity);
     }
 }

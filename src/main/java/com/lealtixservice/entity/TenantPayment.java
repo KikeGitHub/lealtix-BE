@@ -33,6 +33,9 @@ public class TenantPayment {
     private String stripePaymentId;
     private String stripeMode;
     private String userEmail;
+    @ManyToOne
+    @JoinColumn(name = "user_id")
+    private AppUser appUser;
     @Builder.Default
     private java.time.LocalDateTime createdAt = java.time.LocalDateTime.now();
     private java.time.LocalDateTime updatedAt;

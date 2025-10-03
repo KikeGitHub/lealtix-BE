@@ -1,9 +1,8 @@
 package com.lealtixservice.service;
 
 import com.lealtixservice.dto.AppUserDTO;
-import com.lealtixservice.dto.TenantUserDTO;
+import com.lealtixservice.dto.TenantWizardDTO;
 import com.lealtixservice.entity.AppUser;
-import com.lealtixservice.entity.TenantUser;
 
 import java.util.List;
 import java.util.Optional;
@@ -19,6 +18,6 @@ public interface AppUserService {
 
     AppUserDTO getUserByToken(String token);
 
-    TenantUserDTO getTenantUserByToken(String token);
+    TenantWizardDTO getTenantUserByToken(String token);
 }
 

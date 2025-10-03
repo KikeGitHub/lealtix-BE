@@ -6,11 +6,9 @@ import com.lealtixservice.dto.PagoDto;
 import com.lealtixservice.entity.AppUser;
 import com.lealtixservice.entity.Tenant;
 import com.lealtixservice.entity.TenantPayment;
-import com.lealtixservice.entity.TenantUser;
 import com.lealtixservice.enums.PaymentStatus;
 import com.lealtixservice.repository.AppUserRepository;
 import com.lealtixservice.repository.TenantPaymentRepository;
-import com.lealtixservice.repository.TenantUserRepository;
 import com.lealtixservice.service.Emailservice;
 import com.lealtixservice.service.TenantPaymentService;
 import org.slf4j.Logger;
@@ -33,9 +31,6 @@ public class TenantPaymentServiceImpl implements TenantPaymentService {
 
     @Autowired
     private AppUserRepository  appUserRepository;
-
-    @Autowired
-    private TenantUserRepository tenantUserRepository;
 
     @Autowired
     private Emailservice emailservice;
@@ -70,12 +65,6 @@ public class TenantPaymentServiceImpl implements TenantPaymentService {
         Tenant tenant = null;
         if (user == null) {
             throw new IllegalArgumentException("User not found with email: " + pagoDto.getEmail());
-        }else{
-            TenantUser tenantUser = tenantUserRepository.findByUserId(user.getId());
-            if(tenantUser == null){
-                throw new IllegalArgumentException("El usuario no está asociado a ningún tenant " + pagoDto.getEmail());
-            }
-            tenant = tenantUser.getTenant();
         }
         PaymentStatus paymentStatus;
         try {

@@ -3,13 +3,13 @@ package com.lealtixservice.service;
 import com.lealtixservice.config.SendGridTemplates;
 import com.lealtixservice.dto.EmailDTO;
 import com.lealtixservice.dto.PagoDto;
-import com.lealtixservice.entity.PreRegistro;
-import com.lealtixservice.entity.Tenant;
-import com.lealtixservice.entity.TenantPayment;
+import com.lealtixservice.entity.*;
 import com.lealtixservice.repository.PreRegistroRepository;
 import com.lealtixservice.repository.TenantPaymentRepository;
 import com.lealtixservice.repository.TenantRepository;
 import com.lealtixservice.util.DateUtils;
+import com.lealtixservice.util.EncrypUtils;
+import com.lealtixservice.util.StringUtils;
 import com.stripe.Stripe;
 import com.stripe.exception.StripeException;
 import com.stripe.model.Product;
@@ -25,6 +25,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -41,6 +42,12 @@ public class StripeServiceImpl implements StripeService {
     private TenantPaymentRepository tenantPaymentRepository;
 
     @Autowired
+    private AppUserService appUserService;
+
+    @Autowired
+    private InvitationService invitationService;
+
+    @Autowired
     private TenantRepository tenantRepository;
 
     @Autowired
@@ -52,7 +59,8 @@ public class StripeServiceImpl implements StripeService {
     @Autowired
     private TokenService tokenService;
 
-    private Price lastCreatedPrice;;
+    private Price lastCreatedPrice;
+    ;
 
     @Value("${stripe.api.key}")
     private String apiKey;
@@ -104,7 +112,7 @@ public class StripeServiceImpl implements StripeService {
         Session session;
         try {
             session = Session.create(params);
-        }catch (Exception e){
+        } catch (Exception e) {
             log.error("Error creating checkout session: {}", e.getMessage());
             throw new Exception("Error creating checkout session");
         }
@@ -114,76 +122,86 @@ public class StripeServiceImpl implements StripeService {
     }
 
     @Override
-    public PagoDto getCheckoutSession(String sessionId) {
+    public PagoDto getCheckoutSession(String sessionId) throws StripeException {
+        PagoDto pagoDto = null;
         try {
-            PagoDto pagoDto = null;
             Session session = Session.retrieve(sessionId);
-            String tenantId = session.getClientReferenceId();
-            TenantPayment tenantPayment = tenantPaymentRepository.findByUIDTenantAndStatus(tenantId, "INITIATED");
-            if (tenantPayment != null) {
-                pagoDto = new PagoDto();
-                pagoDto.setPlan(tenantPayment.getPlan());
-                pagoDto.setInterval("Mensual");
-                pagoDto.setName(session.getCustomerDetails().getName());
-                pagoDto.setCost("$ " + session.getAmountTotal());
-                pagoDto.setCurrency(session.getCurrency());
-                pagoDto.setPaymentDate(DateUtils.formatDatefromLong(session.getCreated()));
-                pagoDto.setNextPaymentDate(DateUtils.formatDatefromLongNext(session.getCreated()));
-                pagoDto.setLink(createSlug(tenantPayment.getTenant()));
-                // Actualizar estado del pago
-                TenantPayment tp = new TenantPayment();
-                tp.setCreatedAt(LocalDateTime.now());
-                tp.setEndDate(tenantPayment.getEndDate());
-                tp.setPlan(tenantPayment.getPlan());
-                tp.setStartDate(tenantPayment.getStartDate());
-                tp.setTenant(tenantPayment.getTenant());
-                tp.setName(tenantPayment.getName());
-                tp.setUIDTenant(tenantPayment.getUIDTenant());
-                tp.setDescription("Successful payment");
-                tp.setStripeCustomerId(session.getCustomer());
-                tp.setStatus(session.getPaymentStatus());
-                tp.setUpdatedAt(LocalDateTime.now());
-                tp.setAmount(session.getAmountTotal());
-                tp.setStripePaymentId(session.getId());
-                tp.setStripeMode(session.getMode());
-                tp.setStripePaymentMethodId(session.getPaymentMethodConfigurationDetails().getId());
-                tp.setUserEmail(tenantPayment.getUserEmail());
-                tenantPaymentRepository.save(tp);
-                // Activa tenant
-                Tenant tenant = tenantPayment.getTenant();
-                tenant.setActive(true);
-                tenantRepository.save(tenant);
-                PreRegistro preRegistro = preRegistroRepository.findByEmail(tenantPayment.getUserEmail()).orElse(null);
-                if (preRegistro == null) {
-                    log.error("PreRegistro not found for email: {}", session.getCustomerEmail());
-                }else{
-                    preRegistro.setStatus(COMPLETED); // Payment completed
-                    preRegistro.setDescription("Payment completed by Stripe");
-                    preRegistro.setUpdatedDate(LocalDateTime.now());
-                    preRegistroRepository.save(preRegistro);
-                }
-                String jwtToken = tokenService.generateToken(tenant.getId(),session.getCustomerEmail());
-                log.info("Generated JWT Token for tenantId {}: {}", tenant.getId(), jwtToken);
-                // Enviar email de bienvenida
-                EmailDTO emailDTO = EmailDTO.builder()
-                        .to(tenantPayment.getUserEmail())
-                        .subject("Gracias por registrarte en Lealtix")
-                        .templateId(sendGridTemplates.getWelcomeTemplate())
-                        .dynamicData(Map.of(
-                                "name", tenantPayment.getName(),
-                                "link", "http://localhost:4200/admin/wizard?token="+jwtToken,
-                                "logoUrl", "http://cdn.mcauto-images-production.sendgrid.net/b30f9991de8e45d3/af636f80-aa14-4886-9b12-ff4865e26908/627x465.png",
-                                "password", "123qwe...",
-                                "username", tenantPayment.getUserEmail()
-                        ))
-                        .build();
-                emailservice.sendEmailWithTemplate(emailDTO);
+            Long userId = Long.valueOf(session.getClientReferenceId());
+            AppUser user = appUserService.findById(userId).orElseThrow(
+                    () -> new RuntimeException("User not found with id: " + userId)
+            );
+
+            TenantPayment tp = TenantPayment.builder().build();
+            tp.setCreatedAt(LocalDateTime.now());
+            tp.setEndDate(LocalDateTime.now());
+            tp.setPlan("Básico"); // TODO Asignar plan básico
+            tp.setStartDate(LocalDateTime.now());
+            tp.setTenant(null);
+            tp.setName(user.getFullName());
+            tp.setUIDTenant("");
+            tp.setDescription("Successful payment");
+            tp.setStripeCustomerId(session.getCustomer());
+            tp.setStatus(session.getPaymentStatus());
+            tp.setUpdatedAt(LocalDateTime.now());
+            tp.setAmount(session.getAmountTotal());
+            tp.setStripePaymentId(session.getId());
+            tp.setStripeMode(session.getMode());
+            tp.setStripeSubscriptionId(session.getSubscription());
+            tp.setStripePaymentMethodId(session.getPaymentMethodConfigurationDetails().getId());
+            tp.setUserEmail(user.getEmail());
+            tp.setAppUser(user);
+            tenantPaymentRepository.save(tp);
+
+            // llena pagoDto con datos de tenantPayment
+            pagoDto = new PagoDto();
+            pagoDto.setName(tp.getName());
+            pagoDto.setStatus(tp.getStatus());
+            pagoDto.setCost(tp.getAmount().toString());
+            pagoDto.setCurrency(session.getCurrency());
+            pagoDto.setPaymentDate(DateUtils.formatDatefromLong(session.getCreated()));
+            pagoDto.setNextPaymentDate(DateUtils.formatDatefromLongNext(session.getCreated()));
+            pagoDto.setDescription(tp.getDescription());
+            pagoDto.setPlan(tp.getPlan());
+
+            PreRegistro preRegistro = preRegistroRepository.findByEmail(user.getEmail()).orElse(null);
+            if (preRegistro == null) {
+                throw new RuntimeException("preRegistro not found with id: " + user.getEmail());
+            } else {
+                preRegistro.setStatus(COMPLETED); // Payment completed
+                preRegistro.setDescription("Payment completed by Stripe");
+                preRegistro.setUpdatedDate(LocalDateTime.now());
+                preRegistroRepository.save(preRegistro);
             }
-            return pagoDto;
+
+            // Actualiza invitacion usada
+            Invitation invitation = invitationService.getInviteByEmail(user.getEmail());
+            if (invitation != null) {
+                invitation.setUsedAt(LocalDateTime.now().atZone(java.time.ZoneId.systemDefault()).toInstant());
+                invitationService.save(invitation);
+            }
+
+
+            String jwtToken = tokenService.generateToken(user.getId(), user.getEmail());
+            log.info("Generated JWT Token for tenantId {}: {}", user.getId(), jwtToken);
+            // Enviar email de bienvenida
+            EmailDTO emailDTO = EmailDTO.builder()
+                    .to(user.getEmail())
+                    .subject("Gracias por registrarte en Lealtix")
+                    .templateId(sendGridTemplates.getWelcomeTemplate())
+                    .dynamicData(Map.of(
+                            "name", user.getFullName(),
+                            "link", "http://localhost:4200/admin/wizard?token=" + jwtToken,
+                            "logoUrl", "http://cdn.mcauto-images-production.sendgrid.net/b30f9991de8e45d3/af636f80-aa14-4886-9b12-ff4865e26908/627x465.png",
+                            "password", EncrypUtils.decrypPassword(user.getPasswordHash()),
+                            "username", user.getEmail()
+                    ))
+                    .build();
+            emailservice.sendEmailWithTemplate(emailDTO);
         } catch (StripeException | IOException e) {
             log.error("Error retrieving checkout session: {}", e.getMessage());
             return null;
         }
+        return pagoDto;
     }
 
     @Override
@@ -214,9 +232,7 @@ public class StripeServiceImpl implements StripeService {
 
     private String createSlug(Tenant tenant) {
         if (tenant != null) {
-            String name = tenant.getNombreNegocio().toLowerCase().replaceAll("[^a-z0-9]+", "-");
-            String uniqueId = String.valueOf(tenant.getId());
-            String slug = name + "-" + uniqueId;
+            String slug = StringUtils.createSlug(tenant.getNombreNegocio(), tenant.getId());
             tenant.setSlug(slug);
             tenantRepository.save(tenant);
             return slug;

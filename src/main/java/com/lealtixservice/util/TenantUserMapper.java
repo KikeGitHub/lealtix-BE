@@ -1,46 +1,11 @@
 package com.lealtixservice.util;
 
-import com.lealtixservice.dto.AppUserDTO;
-import com.lealtixservice.dto.TenantDTO;
-import com.lealtixservice.dto.TenantUserDTO;
-import com.lealtixservice.dto.TenantUserIdDTO;
+import com.lealtixservice.dto.*;
 import com.lealtixservice.entity.AppUser;
 import com.lealtixservice.entity.Tenant;
-import com.lealtixservice.entity.TenantUser;
-import com.lealtixservice.entity.TenantUserId;
+import com.lealtixservice.entity.TenantConfig;
 
 public class TenantUserMapper {
-    public static TenantUserDTO toDTO(TenantUser entity) {
-        if (entity == null) return null;
-        return TenantUserDTO.builder()
-                .id(TenantUserIdDTO.builder()
-                        .tenantId(entity.getId().getTenantId())
-                        .userId(entity.getId().getUserId())
-                        .roleId(entity.getId().getRoleId())
-                        .build())
-                .tenant(toTenantDTO(entity.getTenant()))
-                .user(toAppUserDTO(entity.getUser()))
-                .roleId(entity.getRole() != null ? entity.getRole().getId() : null)
-                .build();
-    }
-
-    public static TenantUser toEntity(TenantUserDTO dto) {
-        if (dto == null) return null;
-        TenantUserId id = new TenantUserId(
-                dto.getId().getTenantId(),
-                dto.getId().getUserId(),
-                dto.getId().getRoleId()
-        );
-        TenantUser.TenantUserBuilder builder = TenantUser.builder().id(id);
-        if (dto.getTenant() != null) {
-            builder.tenant(toTenant(dto.getTenant()));
-        }
-        if (dto.getUser() != null) {
-            builder.user(toAppUser(dto.getUser()));
-        }
-        // No se mapea Role completo, solo el id
-        return builder.build();
-    }
 
     public static TenantDTO toTenantDTO(Tenant tenant) {
         if (tenant == null) return null;
@@ -52,7 +17,10 @@ public class TenantUserMapper {
                 .tipoNegocio(tenant.getTipoNegocio())
                 .slug(tenant.getSlug())
                 .UIDTenant(tenant.getUIDTenant())
+                .slogan(tenant.getSlogan())
+                .logoUrl(tenant.getLogoUrl())
                 .isActive(tenant.isActive())
+                .schedules(tenant.getSchedules())
                 .createdAt(tenant.getCreatedAt())
                 .updatedAt(tenant.getUpdatedAt())
                 .build();
@@ -61,14 +29,13 @@ public class TenantUserMapper {
     public static Tenant toTenant(TenantDTO dto) {
         if (dto == null) return null;
         return Tenant.builder()
-                .id(dto.getId())
                 .nombreNegocio(dto.getNombreNegocio())
                 .direccion(dto.getDireccion())
                 .telefono(dto.getTelefono())
                 .tipoNegocio(dto.getTipoNegocio())
                 .slug(dto.getSlug())
                 .UIDTenant(dto.getUIDTenant())
-                .isActive(dto.isActive())
+                .isActive(true)
                 .createdAt(dto.getCreatedAt())
                 .updatedAt(dto.getUpdatedAt())
                 .build();
@@ -82,7 +49,7 @@ public class TenantUserMapper {
                 .fechaNacimiento(user.getFechaNacimiento())
                 .telefono(user.getTelefono())
                 .email(user.getEmail())
-                .password(user.getPasswordHash())
+                .password(EncrypUtils.decrypPassword(user.getPasswordHash()))
                 .isActive(user.isActive())
                 .createdAt(user.getCreatedAt())
                 .updatedAt(user.getUpdatedAt())
@@ -101,6 +68,24 @@ public class TenantUserMapper {
                 .isActive(dto.isActive())
                 .createdAt(dto.getCreatedAt())
                 .updatedAt(dto.getUpdatedAt())
+                .build();
+    }
+
+    public static TenantConfigDTO toTenantConfigDTO(TenantConfig tenantConfig) {
+        if (tenantConfig == null) return null;
+        return TenantConfigDTO.builder()
+                .id(tenantConfig.getId())
+                .tenantId(tenantConfig.getTenant().getId())
+                .history(tenantConfig.getHistory())
+                .vision(tenantConfig.getVision())
+                .bussinesEmail(tenantConfig.getBussinesEmail())
+                .twitter(tenantConfig.getTwitter())
+                .facebook(tenantConfig.getFacebook())
+                .linkedin(tenantConfig.getLinkedin())
+                .instagram(tenantConfig.getInstagram())
+                .tiktok(tenantConfig.getTiktok())
+                .createdAt(tenantConfig.getCreatedAt())
+                .updatedAt(tenantConfig.getUpdatedAt())
                 .build();
     }
 }

@@ -29,8 +29,6 @@ public class InvitationServiceImpl implements InvitationService {
     private PreRegistroRepository preRegistroRepository;
     @Autowired
     private AppUserRepository appUserRepository;
-    @Autowired
-    private TenantUserRepository tenantUserRepository;
 
     private final SecureRandom secureRandom = new SecureRandom();
 
@@ -80,26 +78,7 @@ public class InvitationServiceImpl implements InvitationService {
             if(user == null){
                 message = "Token ya usado sin Registro de Tenant";
                 ok = false;
-            }else{
-                TenantUser tenantUser = tenantUserRepository.findByUserId(user.getId());
-                if(tenantUser.getTenant() != null){
-                    Tenant tenant = tenantUser.getTenant();
-                    // Token usado con registro de tenant mapear todo el objeto
-                    registroDto.setFullName(user.getFullName());
-                    registroDto.setFechaNacimiento(user.getFechaNacimiento());
-                    registroDto.setTelefono(user.getTelefono());
-                    registroDto.setEmail(user.getEmail());
-                    registroDto.setNombreNegocio(tenant.getNombreNegocio());
-                    registroDto.setDireccion(tenant.getDireccion());
-                    registroDto.setTelefonoNegocio(tenant.getTelefono());
-                    registroDto.setTipoNegocio(tenant.getTipoNegocio());
-                    response.setRegistroDto(registroDto);
-                }else{
-                    message = "Token ya usado Sin Registro de Tenant";
-                    ok = false;
-                }
             }
-
         }else if (Instant.now().isAfter(invitation.getExpiresAt())) {
             message = "Token expirado";
             ok = false;
