@@ -99,47 +99,39 @@ public class TenantServiceImpl implements TenantService {
 
     @Override
     public Tenant create(TenantDTO tenantDto) {
-        if(tenantDto != null) {
-            AppUser user = appUserService.findById(tenantDto.getUserId()).orElse(null);
-            var existingTenantOpt = tenantRepository.findByAppUserId(user.getId());
-            Tenant tenant = null;
-            if(existingTenantOpt.isPresent()){
-                tenant = existingTenantOpt.get();
-                tenant.setNombreNegocio(tenantDto.getNombreNegocio());
-                tenant.setDireccion(tenantDto.getDireccion());
-                tenant.setTelefono(tenantDto.getTelefono());
-                tenant.setTipoNegocio(tenantDto.getTipoNegocio());
-                tenant.setSlogan(tenantDto.getSlogan());
-                tenant.setLogoUrl(tenantDto.getLogoUrl());
-                tenant.setUpdatedAt(LocalDateTime.now());
-                tenant.setSchedules(tenantDto.getSchedules());
-            }else{
-                tenant = Tenant.builder()
-                    .nombreNegocio(tenantDto.getNombreNegocio())
-                    .direccion(tenantDto.getDireccion())
-                    .telefono(tenantDto.getTelefono())
-                    .tipoNegocio(tenantDto.getTipoNegocio())
-                    .slogan(tenantDto.getSlogan() != null ? tenantDto.getSlogan() : "")
-                    .logoUrl(tenantDto.getLogoUrl() != null ? StringUtils.decryptBase64(tenantDto.getLogoUrl()) : "")
-                    .isActive(true)
-                    .appUser(user)
-                    .schedules(tenantDto.getSchedules())
-                    .createdAt(LocalDateTime.now())
-                    .updatedAt(LocalDateTime.now())
-                    .build();
-            }
+                    if (tenantDto == null) {
+                        return null;
+                    }
 
-            Tenant savedTenant = tenantRepository.save(tenant);
-            // Actualiza slug y UIDTenant después de obtener el ID
-            String slug = StringUtils.createSlug(savedTenant.getNombreNegocio(), savedTenant.getId());
-            String uidTenant = "UID-" + savedTenant.getId();
-            savedTenant.setSlug(slug);
-            savedTenant.setUIDTenant(uidTenant);
-            return tenantRepository.save(savedTenant);
+                    Tenant tenant = tenantRepository.findById(tenantDto.getId())
+                            .orElseThrow(() -> new IllegalArgumentException("Tenant not found with id: " + tenantDto.getId()));
 
-        }
-        return null;
-    }
+                    TenantConfig tenantConfig = tenantConfigRepository.findByTenantId(tenant.getId());
+                    if (tenantConfig == null) {
+                        tenantConfig = new TenantConfig();
+                        tenantConfig.setTenant(tenant);
+                        tenantConfig.setCreatedAt(LocalDateTime.now());
+                    }
+                    tenantConfig.setUpdatedAt(LocalDateTime.now());
+                    tenantConfig.setHistory(tenantDto.getHistory());
+                    tenantConfig.setVision(tenantDto.getVision());
+                    tenantConfig.setBussinesEmail(tenantDto.getBussinessEmail());
+                    // social media
+                    tenantConfig.setFacebook(tenantDto.getFacebook());
+                    tenantConfig.setInstagram(tenantDto.getInstagram());
+                    tenantConfig.setTiktok(tenantDto.getTiktok());
+                    tenantConfig.setTwitter(tenantDto.getX());
+
+                    tenantConfigRepository.save(tenantConfig);
+
+                    tenant.setDireccion(tenantDto.getDireccion());
+                    tenant.setTelefono(tenantDto.getTelefono());
+                    tenant.setTipoNegocio(tenantDto.getTipoNegocio());
+                    tenant.setUpdatedAt(LocalDateTime.now());
+                    tenant.setSchedules(tenantDto.getSchedules());
+
+                    return tenantRepository.save(tenant);
+                }
 
     @Override
     public TenantWizardDTO getBySlug(String slug) {

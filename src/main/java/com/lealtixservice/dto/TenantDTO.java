@@ -25,7 +25,15 @@ public class TenantDTO {
     private String logoUrl;
     private String slogan;
     private String UIDTenant;
+    private String email;
+    private String bussinessEmail;
     private boolean isActive;
+    private String history;
+    private String vision;
+    private String facebook;
+    private String instagram;
+    private String x;
+    private String tiktok;
     private String schedules;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

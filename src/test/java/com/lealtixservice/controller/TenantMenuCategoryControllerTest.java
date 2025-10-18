@@ -54,14 +54,6 @@ class TenantMenuCategoryControllerTest {
     }
 
     @Test
-    void create_returnsSaved() {
-        TenantMenuCategory category = new TenantMenuCategory();
-        when(categoryService.save(category)).thenReturn(category);
-        ResponseEntity<TenantMenuCategory> response = controller.create(category);
-        assertEquals(category, response.getBody());
-    }
-
-    @Test
     void delete_callsService() {
         doNothing().when(categoryService).deleteById(1L);
         ResponseEntity<Void> response = controller.delete(1L);

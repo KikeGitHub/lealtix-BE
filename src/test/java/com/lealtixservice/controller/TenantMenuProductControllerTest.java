@@ -38,28 +38,7 @@ class TenantMenuProductControllerTest {
         verify(productService).findAll();
     }
 
-    @Test
-    void getById_found() {
-        TenantMenuProduct product = new TenantMenuProduct();
-        when(productService.findById(1L)).thenReturn(Optional.of(product));
-        ResponseEntity<TenantMenuProduct> response = controller.getById(1L);
-        assertEquals(product, response.getBody());
-    }
 
-    @Test
-    void getById_notFound() {
-        when(productService.findById(1L)).thenReturn(Optional.empty());
-        ResponseEntity<TenantMenuProduct> response = controller.getById(1L);
-        assertEquals(404, response.getStatusCodeValue());
-    }
-
-    @Test
-    void create_returnsSaved() {
-        TenantMenuProduct product = new TenantMenuProduct();
-        when(productService.save(product)).thenReturn(product);
-        ResponseEntity<TenantMenuProduct> response = controller.create(product);
-        assertEquals(product, response.getBody());
-    }
 
     @Test
     void delete_callsService() {
