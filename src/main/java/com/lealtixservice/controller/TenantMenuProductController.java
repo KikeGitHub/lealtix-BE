@@ -1,5 +1,8 @@
 package com.lealtixservice.controller;
 
+import com.lealtixservice.dto.GenericResponse;
+import com.lealtixservice.dto.TenantMenuCategoryDTO;
+import com.lealtixservice.dto.TenantMenuProductDTO;
 import com.lealtixservice.entity.TenantMenuProduct;
 import com.lealtixservice.service.TenantMenuProductService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -28,18 +31,34 @@ public class TenantMenuProductController {
         return ResponseEntity.ok(productService.findAll());
     }
 
-    @Operation(summary = "Obtener un producto por ID")
-    @GetMapping("/{id}")
-    public ResponseEntity<TenantMenuProduct> getById(@PathVariable Long id) {
-        return productService.findById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+    @Operation(summary = "Obtener un producto por tenantId")
+    @GetMapping("/tenant/{tenantId}")
+    public ResponseEntity<GenericResponse> getProductsByTenantId(@PathVariable Long tenantId) {
+        try {
+            List<TenantMenuProductDTO>  products = productService.getProductsByTenantId(tenantId);
+            if (products != null && !products.isEmpty()) {
+                return ResponseEntity.ok(new GenericResponse(201, "Productos obtenidos exitosamente", products));
+            } else {
+                return ResponseEntity.ok(new GenericResponse(400, "No se pudo obtener  Productos", null));
+            }
+        } catch (Exception e) {
+            return ResponseEntity.ok(new GenericResponse(500, "Error interno del servidor", null));
+        }
     }
 
     @Operation(summary = "Crear un nuevo producto")
     @PostMapping
-    public ResponseEntity<TenantMenuProduct> create(@RequestBody TenantMenuProduct product) {
-        return ResponseEntity.ok(productService.save(product));
+    public ResponseEntity<GenericResponse> create(@RequestBody TenantMenuProductDTO product) {
+        try{
+            TenantMenuProductDTO resp = productService.create(product);
+            if(resp != null){
+                return ResponseEntity.ok(new GenericResponse(201, "Producto creado exitosamente", resp));
+            }else{
+                return ResponseEntity.ok(new GenericResponse(400, "No se pudo crear la Producto", null));
+            }
+        }catch (Exception e){
+            return ResponseEntity.ok(new GenericResponse(500, "Error interno del servidor", null));
+        }
     }
 
     @Operation(summary = "Eliminar un producto por ID")
