@@ -17,5 +17,7 @@ public interface TenantService {
     Tenant create(TenantDTO tenant);
 
     TenantWizardDTO getBySlug(String slug);
+
+    TenantDTO getByEmail(String email);
 }
 

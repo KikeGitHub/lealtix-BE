@@ -32,6 +32,7 @@ public class TenantDTO {
     private String vision;
     private String facebook;
     private String instagram;
+    private String linkedin;
     private String x;
     private String tiktok;
     private String schedules;

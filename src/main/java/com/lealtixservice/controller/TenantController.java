@@ -71,6 +71,29 @@ public class TenantController {
         }
     }
 
+
+    /**
+     * Obtiene un Tenant por email.
+     * @param email del tenant
+     * @return TenantDTO encontrado o 404
+     */
+    @Operation(summary = "Obtener Tenant por email", description = "Obtiene un Tenant por su email único.")
+    @GetMapping("/config/{email}")
+    public ResponseEntity<GenericResponse> getByEmail(@PathVariable String email) {
+        try {
+            var resp = tenantService.getByEmail(email);
+            if (resp == null) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(new GenericResponse(404, "NOT FOUND", null));
+            }
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(new GenericResponse(200, "SUCCESS", resp));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new GenericResponse(500, e.getMessage(), null));
+        }
+    }
+
     /**
      * Lista todos los Tenants.
      * @return lista de TenantDTO

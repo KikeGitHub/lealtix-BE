@@ -121,7 +121,7 @@ public class TenantServiceImpl implements TenantService {
                     tenantConfig.setInstagram(tenantDto.getInstagram());
                     tenantConfig.setTiktok(tenantDto.getTiktok());
                     tenantConfig.setTwitter(tenantDto.getX());
-
+                    tenantConfig.setLinkedin(tenantDto.getLinkedin());
                     tenantConfigRepository.save(tenantConfig);
 
                     tenant.setDireccion(tenantDto.getDireccion());
@@ -129,6 +129,7 @@ public class TenantServiceImpl implements TenantService {
                     tenant.setTipoNegocio(tenantDto.getTipoNegocio());
                     tenant.setUpdatedAt(LocalDateTime.now());
                     tenant.setSchedules(tenantDto.getSchedules());
+                    tenant.setTipoNegocio("Cafeteria");
 
                     return tenantRepository.save(tenant);
                 }
@@ -153,5 +154,26 @@ public class TenantServiceImpl implements TenantService {
         }
 
         return resp;
+    }
+
+    @Override
+    public TenantDTO getByEmail(String email) {
+
+        TenantDTO result = null;
+        AppUser user = appUserService.findByEmail(email).orElse(null);
+        if (user != null) {
+            Tenant tenant = tenantRepository.findByAppUserId(user.getId()).orElse(null);
+            if (tenant != null) {
+                result = TenantUserMapper.toTenantDTO(tenant);
+                TenantConfig tenantConfig = tenantConfigRepository.findByTenantId(tenant.getId());
+                if (tenantConfig != null) {
+                    result = TenantUserMapper.toTenantDTOWithConfig(tenant, tenantConfig);
+                }
+                result.setUserId(user.getId());
+                result.setEmail(email);
+                return result;
+            }
+        }
+        return null;
     }
 }
