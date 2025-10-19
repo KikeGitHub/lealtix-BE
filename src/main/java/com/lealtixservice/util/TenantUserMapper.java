@@ -88,5 +88,21 @@ public class TenantUserMapper {
                 .updatedAt(tenantConfig.getUpdatedAt())
                 .build();
     }
+
+    public static TenantDTO toTenantDTOWithConfig(Tenant tenant, TenantConfig tenantConfig) {
+        if (tenant == null) return null;
+        TenantDTO dto = toTenantDTO(tenant);
+        if (tenantConfig != null) {
+            dto.setHistory(tenantConfig.getHistory());
+            dto.setVision(tenantConfig.getVision());
+            dto.setBussinessEmail(tenantConfig.getBussinesEmail());
+            dto.setFacebook(tenantConfig.getFacebook());
+            dto.setInstagram(tenantConfig.getInstagram());
+            dto.setX(tenantConfig.getTwitter());
+            dto.setTiktok(tenantConfig.getTiktok());
+            dto.setLinkedin(tenantConfig.getLinkedin());
+        }
+        return dto;
+    }
 }
 
