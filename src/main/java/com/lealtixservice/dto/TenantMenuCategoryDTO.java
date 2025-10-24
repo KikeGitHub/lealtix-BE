@@ -16,6 +16,8 @@ public class TenantMenuCategoryDTO {
     private Long id;
     private Long tenantId;
     private String name;
+    private String description;
+    private boolean isActive;
     private List<TenantMenuProductDTO> productsDTO;
 
 }

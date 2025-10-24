@@ -108,7 +108,33 @@ public class ImageServiceImpl implements ImageService {
             return tenantEntity.getId();
         }
 
-        private void validateImageDTO(ImageDTO imageDTO) {
+    @Override
+    public String uploadProdImageBase64(ImageDTO imageDTO) throws IOException {
+        validateImageDTO(imageDTO);
+
+        Tenant tenant;
+        Optional<Tenant> tenantOptional = tenantRepository.findById(imageDTO.getTenantId());
+        if (tenantOptional.isPresent()) {
+            tenant = tenantOptional.get();
+        }else{
+            throw new IllegalArgumentException("Tenant no encontrado con el ID proporcionado");
+        }
+
+        String imgName = "img_" + StringUtils.createSlug(imageDTO.getProductName(), tenant.getId());
+        String folder = getFolderByType(imageDTO.getType());
+
+        byte[] imageBytes = Base64.getDecoder().decode(imageDTO.getBase64File());
+        Map<String, Object> uploadResult = uploadToCloudinary(imageBytes, folder, imgName);
+
+        String url = (String) uploadResult.get("secure_url");
+        if (url == null) {
+            throw new IOException("No se pudo obtener la URL de la imagen subida");
+        }
+
+        return url;
+    }
+
+    private void validateImageDTO(ImageDTO imageDTO) {
             if (imageDTO.getBase64File() == null || imageDTO.getBase64File().isEmpty()) {
                 throw new IllegalArgumentException("La imagen en base64 no puede estar vacía");
             }

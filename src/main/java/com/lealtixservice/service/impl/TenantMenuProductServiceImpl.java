@@ -70,8 +70,11 @@ public class TenantMenuProductServiceImpl implements TenantMenuProductService {
             newProduct.setCategory(category);
             newProduct.setNombre(product.getName());
             newProduct.setDescripcion(product.getDescription());
-            newProduct.setPrecio(BigDecimal.valueOf(product.getPrice()));
+            newProduct.setPrecio(product.getPrice());
             newProduct.setImgUrl(product.getImageUrl());
+            newProduct.setCreatedAt(LocalDateTime.now());
+            newProduct.setUpdatedAt(LocalDateTime.now());
+            newProduct.setActive(true);
 
             TenantMenuProduct productCreated = productRepository.save(newProduct);
             product.setId(productCreated.getId());
@@ -80,22 +83,13 @@ public class TenantMenuProductServiceImpl implements TenantMenuProductService {
 
     @Override
     public List<TenantMenuProductDTO> getProductsByTenantId(Long tenantId) {
-        List<TenantMenuProduct> products = productRepository.findAll();
-        List<TenantMenuProductDTO> productDTOs = products.stream()
-            .filter(product -> product.getCategory() != null && product.getCategory().getTenant() != null &&
-                    product.getCategory().getTenant().getId().equals(tenantId))
-            .map(product -> TenantMenuProductDTO.builder()
-                .id(product.getId())
-                .name(product.getNombre())
-                .description(product.getDescripcion())
-                .price(product.getPrecio() != null ? product.getPrecio().doubleValue() : 0.00)
-                .imageUrl(product.getImgUrl())
-                .tenantId(product.getCategory().getTenant().getId())
-                .categoryId(product.getCategory().getId())
-                .categoryName(product.getCategory().getNombre())
-                .build())
-            .sorted((p1, p2) -> p1.getCategoryName().compareToIgnoreCase(p2.getCategoryName()))
-            .toList();
-        return productDTOs;
+        List<TenantMenuProductDTO> products = productRepository.findByCategoryTenantId(tenantId);
+        if (products == null) return List.of();
+        products.sort((p1, p2) -> {
+            String c1 = p1.getCategoryName() != null ? p1.getCategoryName() : "";
+            String c2 = p2.getCategoryName() != null ? p2.getCategoryName() : "";
+            return c1.compareToIgnoreCase(c2);
+        });
+        return products;
     }
 }
