@@ -11,6 +11,7 @@ import com.lealtixservice.repository.AppUserRepository;
 import com.lealtixservice.repository.TenantPaymentRepository;
 import com.lealtixservice.service.Emailservice;
 import com.lealtixservice.service.TenantPaymentService;
+import com.lealtixservice.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,6 +27,8 @@ import java.util.Optional;
 public class TenantPaymentServiceImpl implements TenantPaymentService {
 
     private static final Logger log = LoggerFactory.getLogger(TenantPaymentServiceImpl.class);
+    public static final String AUTH_LOGIN = "http://localhost:4201/auth/login";
+    public static final String LOGO_LEALTIX = "https://res.cloudinary.com/lealtix-media/image/upload/v1759897289/lealtix_logo_transp_qcp5h9.png";
     @Autowired
     private  TenantPaymentRepository tenantPaymentRepository;
 
@@ -98,9 +101,9 @@ public class TenantPaymentServiceImpl implements TenantPaymentService {
                 .dynamicData(Map.of(
                         "name", user.getFullName(),
                         "username", pagoDto.getEmail(),
-                        "password", user.getPasswordHash(),
-                        "link", "https://app.lealtix.com/login",
-                        "logoUrl", "http://cdn.mcauto-images-production.sendgrid.net/b30f9991de8e45d3/af636f80-aa14-4886-9b12-ff4865e26908/627x465.png"
+                        "password", StringUtils.decryptBase64(user.getPasswordHash()),
+                        "link", AUTH_LOGIN,
+                        "logoUrl", LOGO_LEALTIX
                 ))
                 .build();
         try {

@@ -22,6 +22,9 @@ public class TenantMenuCategory {
     @Column(length = 100, nullable = false)
     private String nombre;
 
+    @Column(length = 500)
+    private String descripcion;
+
     @Builder.Default
     private boolean isActive = true;
 

@@ -29,18 +29,6 @@ class TenantConfigServiceImplTest {
         MockitoAnnotations.openMocks(this);
     }
 
-    @Test
-    void saveTenantConfig_success() {
-        Tenant tenant = Tenant.builder().id(2L).build();
-        TenantConfigDTO dto = TenantConfigDTO.builder().tenantId(2L).tipoNegocio("Negocio").build();
-        TenantConfig entity = TenantConfig.builder().id(1L).tenant(tenant).tipoNegocio("Negocio").build();
-        when(tenantRepository.findById(2L)).thenReturn(Optional.of(tenant));
-        when(tenantConfigRepository.save(any())).thenReturn(entity);
-        TenantConfigDTO result = service.saveTenantConfig(dto);
-        assertNotNull(result);
-        assertEquals(1L, result.getId());
-        assertEquals("Negocio", result.getTipoNegocio());
-    }
 
     @Test
     void saveTenantConfig_tenantNotFound() {

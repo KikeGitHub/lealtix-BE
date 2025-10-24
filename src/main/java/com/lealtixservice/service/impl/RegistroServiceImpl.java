@@ -1,17 +1,14 @@
 package com.lealtixservice.service.impl;
 
-import com.lealtixservice.config.SendGridTemplates;
 import com.lealtixservice.dto.PagoDto;
 import com.lealtixservice.dto.RegistroDto;
 import com.lealtixservice.entity.*;
 import com.lealtixservice.repository.*;
-import com.lealtixservice.service.Emailservice;
 import com.lealtixservice.service.InvitationService;
 import com.lealtixservice.service.RegistroService;
 import com.lealtixservice.util.EncrypUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,21 +23,13 @@ public class RegistroServiceImpl implements RegistroService {
     @Autowired
     private  AppUserRepository appUserRepository;
     @Autowired
-    private  TenantRepository tenantRepository;
-    @Autowired
     private  TenantPaymentRepository tenantPaymentRepository;
     @Autowired
     private  RoleRepository roleRepository;
     @Autowired
-    private  BCryptPasswordEncoder passwordEncoder;
-    @Autowired
     private  InvitationService invitationService;
     @Autowired
-    private  Emailservice emailservice;
-    @Autowired
     private  PreRegistroRepository preRegistroRepository;
-    @Autowired
-    private  SendGridTemplates sendGridTemplates;
     @Autowired
     private AppUserRepository userRepository;
 

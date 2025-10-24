@@ -15,5 +15,7 @@ public class ImageDTO {
     private String nombreNegocio;
     private String slogan;
     private  String type;
+    private Long tenantId;
+    private String productName;
     private String base64File;
 }

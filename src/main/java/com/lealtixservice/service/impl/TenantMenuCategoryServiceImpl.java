@@ -62,10 +62,11 @@ public class TenantMenuCategoryServiceImpl implements TenantMenuCategoryService 
                             .categoryId(category.getId())
                             .name(product.getNombre())
                             .description(product.getDescripcion())
-                            .price(product.getPrecio() != null ? product.getPrecio().doubleValue() : 0.00)
+                            .price(product.getPrecio() != null ? product.getPrecio() : BigDecimal.ZERO)
                             .imageUrl(product.getImgUrl())
                             .tenantId(category.getTenant().getId())
                             .categoryName(category.getNombre())
+                            .categoryDescription(category.getDescripcion())
                             .build());
                 })
                 .collect(toList());
@@ -86,15 +87,21 @@ public class TenantMenuCategoryServiceImpl implements TenantMenuCategoryService 
         TenantMenuCategory categoryEntity;
         if (existingCategoryOpt.isPresent()) {
             categoryEntity = existingCategoryOpt.get();
+            categoryEntity.setUpdatedAt(LocalDateTime.now());
+            categoryEntity.setNombre(categoryDTO.getName());
+            categoryEntity.setActive(categoryDTO.isActive());
+            categoryEntity.setDescripcion(categoryDTO.getDescription());
         } else {
             categoryEntity = TenantMenuCategory.builder()
                     .nombre(categoryDTO.getName())
+                    .descripcion(categoryDTO.getDescription())
+                    .isActive(categoryDTO.isActive())
                     .tenant(Tenant.builder().id(categoryDTO.getTenantId()).build())
                     .createdAt(LocalDateTime.now())
                     .updatedAt(LocalDateTime.now())
                     .build();
-            categoryEntity = categoryRepository.save(categoryEntity);
         }
+        categoryEntity = categoryRepository.save(categoryEntity);
 
         // Si hay productos en el DTO, crear y asociar
         if (categoryDTO.getProductsDTO() != null && !categoryDTO.getProductsDTO().isEmpty()) {
@@ -102,7 +109,7 @@ public class TenantMenuCategoryServiceImpl implements TenantMenuCategoryService 
                 TenantMenuProduct productEntity = TenantMenuProduct.builder()
                         .nombre(productDTO.getName())
                         .descripcion(productDTO.getDescription())
-                        .precio(BigDecimal.valueOf(productDTO.getPrice()))
+                        .precio(productDTO.getPrice() != null ? productDTO.getPrice() : BigDecimal.ZERO)
                         .imgUrl(productDTO.getImageUrl())
                         .category(categoryEntity)
                         .isActive(true)
@@ -121,7 +128,7 @@ public class TenantMenuCategoryServiceImpl implements TenantMenuCategoryService 
                         .id(product.getId())
                         .name(product.getNombre())
                         .description(product.getDescripcion())
-                        .price(product.getPrecio() != null ? product.getPrecio().doubleValue() : 0.00)
+                        .price(product.getPrecio() != null ? product.getPrecio() : BigDecimal.ZERO)
                         .imageUrl(product.getImgUrl())
                         .tenantId(finalCategoryEntity.getTenant().getId())
                         .build())
@@ -145,6 +152,9 @@ public class TenantMenuCategoryServiceImpl implements TenantMenuCategoryService 
                 .map(cat -> CategoryDTO.builder()
                         .categoryId(cat.getId())
                         .categoryName(cat.getNombre())
+                        .categoryDescription(cat.getDescripcion())
+                        .isActive(cat.isActive())
+                        .tenantId(cat.getTenant().getId())
                         .build())
                 .collect(toList());
     }

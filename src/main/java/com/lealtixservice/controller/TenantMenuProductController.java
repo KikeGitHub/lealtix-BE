@@ -1,6 +1,7 @@
 package com.lealtixservice.controller;
 
 import com.lealtixservice.dto.GenericResponse;
+import com.lealtixservice.dto.GenericResponseProd;
 import com.lealtixservice.dto.TenantMenuCategoryDTO;
 import com.lealtixservice.dto.TenantMenuProductDTO;
 import com.lealtixservice.entity.TenantMenuProduct;
@@ -33,16 +34,16 @@ public class TenantMenuProductController {
 
     @Operation(summary = "Obtener un producto por tenantId")
     @GetMapping("/tenant/{tenantId}")
-    public ResponseEntity<GenericResponse> getProductsByTenantId(@PathVariable Long tenantId) {
+    public ResponseEntity<GenericResponseProd> getProductsByTenantId(@PathVariable Long tenantId) {
         try {
             List<TenantMenuProductDTO>  products = productService.getProductsByTenantId(tenantId);
             if (products != null && !products.isEmpty()) {
-                return ResponseEntity.ok(new GenericResponse(201, "Productos obtenidos exitosamente", products));
+                return ResponseEntity.ok(new GenericResponseProd(200, "Productos obtenidos exitosamente", products, products.size()));
             } else {
-                return ResponseEntity.ok(new GenericResponse(400, "No se pudo obtener  Productos", null));
+                return ResponseEntity.ok(new GenericResponseProd(400, "No se pudo obtener  Productos", null, 0));
             }
         } catch (Exception e) {
-            return ResponseEntity.ok(new GenericResponse(500, "Error interno del servidor", null));
+            return ResponseEntity.ok(new GenericResponseProd(500, "Error interno del servidor", null, 0));
         }
     }
 
