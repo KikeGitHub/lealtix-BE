@@ -66,15 +66,35 @@ public class TenantMenuProductServiceImpl implements TenantMenuProductService {
                     return categoryService.save(newCategory);
                 });
 
-            TenantMenuProduct newProduct = new TenantMenuProduct();
+        TenantMenuProduct newProduct = new TenantMenuProduct();
+            if(product != null && product.getId() != null){
+                Optional<TenantMenuProduct> existingProduct = productRepository.findById(product.getId());
+                if(existingProduct.isPresent()){
+                    newProduct = existingProduct.get();
+                }
+            }
+
             newProduct.setCategory(category);
-            newProduct.setNombre(product.getName());
-            newProduct.setDescripcion(product.getDescription());
-            newProduct.setPrecio(product.getPrice());
-            newProduct.setImgUrl(product.getImageUrl());
+            if(product.getName() != null && !product.getName().isEmpty()){
+                newProduct.setNombre(product.getName());
+            }
+            if(product.getDescription() != null && !product.getDescription().isEmpty()){
+                newProduct.setDescripcion(product.getDescription());
+            }
+            if(product.getPrice() != null){
+                newProduct.setPrecio(product.getPrice());
+            }
+            if(product.getImageUrl() != null && !product.getImageUrl().isEmpty()){
+                newProduct.setImgUrl(product.getImageUrl());
+            }
+            if(product.getIsActive() != null){
+                newProduct.setActive(product.getIsActive());
+
+            }
+
             newProduct.setCreatedAt(LocalDateTime.now());
             newProduct.setUpdatedAt(LocalDateTime.now());
-            newProduct.setActive(true);
+
 
             TenantMenuProduct productCreated = productRepository.save(newProduct);
             product.setId(productCreated.getId());

@@ -8,12 +8,14 @@ import com.lealtixservice.entity.TenantMenuCategory;
 import com.lealtixservice.service.TenantMenuCategoryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/tenant-menu-categories")
 @Tag(name = "TenantMenuCategory", description = "Operaciones sobre categorías del menú del tenant")
@@ -81,6 +83,7 @@ public class TenantMenuCategoryController {
                 return ResponseEntity.ok(new GenericResponse(400, "No se pudo crear la categoría", null));
             }
         }catch (Exception e){
+            log.error("Error al crear la categoría: ", e);
             return ResponseEntity.ok(new GenericResponse(500, "Error interno del servidor", null));
         }
     }
