@@ -103,8 +103,21 @@ public class TenantServiceImpl implements TenantService {
                         return null;
                     }
 
-                    Tenant tenant = tenantRepository.findById(tenantDto.getId())
-                            .orElseThrow(() -> new IllegalArgumentException("Tenant not found with id: " + tenantDto.getId()));
+                    Tenant tenant = new Tenant();
+                    if(tenantDto.getId() > 0){
+                        tenant = tenantRepository.findById(tenantDto.getId())
+                                .orElseThrow(() -> new IllegalArgumentException("Tenant not found with id: " + tenantDto.getId()));
+                    }else{
+                        AppUser user = appUserService.findById(tenantDto.getUserId())
+                                .orElseThrow(() -> new IllegalArgumentException("User not found with id: " + tenantDto.getUserId()));
+                        tenant.setCreatedAt(LocalDateTime.now());
+                        tenant.setAppUser(user);
+                        tenant.setNombreNegocio(tenantDto.getNombreNegocio());
+                        tenant.setLogoUrl(tenantDto.getLogoUrl());
+                        tenant.setSlogan(tenantDto.getSlogan());
+                        tenant.setTipoNegocio("Cafeteria");
+                    }
+
 
                     TenantConfig tenantConfig = tenantConfigRepository.findByTenantId(tenant.getId());
                     if (tenantConfig == null) {
@@ -130,6 +143,7 @@ public class TenantServiceImpl implements TenantService {
                     tenant.setUpdatedAt(LocalDateTime.now());
                     tenant.setSchedules(tenantDto.getSchedules());
                     tenant.setTipoNegocio("Cafeteria");
+                    tenant.setSlogan(tenantDto.getSlogan());
 
                     return tenantRepository.save(tenant);
                 }
