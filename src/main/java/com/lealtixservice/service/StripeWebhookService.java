@@ -1,9 +1,10 @@
 package com.lealtixservice.service;
 
+import com.lealtixservice.dto.PagoDto;
 import com.stripe.model.Event;
 
 public interface StripeWebhookService {
-    void handleCheckoutSessionCompleted(Event event);
+    PagoDto handleCheckoutSessionCompleted(Event event);
     void handlePaymentIntentSucceeded(Event event);
     void handlePaymentIntentFailed(Event event);
 }

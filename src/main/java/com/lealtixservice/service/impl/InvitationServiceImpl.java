@@ -67,18 +67,14 @@ public class InvitationServiceImpl implements InvitationService {
         boolean ok = true;
         RegistroDto registroDto = new RegistroDto();
         ValidateTokenResponse response = ValidateTokenResponse.builder().build();
-
         String tokenHash = TokenUtils.hashToken(token);
         Invitation invitation = invitationRepository.findByTokenHash(tokenHash).orElse(null);
         if(invitation == null){
             message = "Token no válido";
             ok = false;
         }else if (invitation.getUsedAt() != null) {
-            AppUser user = appUserRepository.findByEmail(invitation.getEmail());
-            if(user == null){
-                message = "Token ya usado sin Registro de Tenant";
-                ok = false;
-            }
+            message = "Token ya usado sin Registro de Tenant";
+            ok = false;
         }else if (Instant.now().isAfter(invitation.getExpiresAt())) {
             message = "Token expirado";
             ok = false;

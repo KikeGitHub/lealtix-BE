@@ -15,6 +15,7 @@ import com.lealtixservice.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -40,6 +41,9 @@ public class TenantPaymentServiceImpl implements TenantPaymentService {
 
     @Autowired
     private  SendGridTemplates sendGridTemplates;
+
+    @Value("${stripe.api.key:}")
+    private String stripeApiKey;
 
 
     @Override
@@ -125,4 +129,3 @@ public class TenantPaymentServiceImpl implements TenantPaymentService {
         return builder;
     }
 }
-

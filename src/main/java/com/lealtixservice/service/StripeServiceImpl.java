@@ -12,6 +12,8 @@ import com.lealtixservice.util.EncrypUtils;
 import com.lealtixservice.util.StringUtils;
 import com.stripe.Stripe;
 import com.stripe.exception.StripeException;
+import com.stripe.model.Customer;
+import com.stripe.model.PaymentIntent;
 import com.stripe.model.Product;
 import com.stripe.model.Price;
 import com.stripe.model.checkout.Session;
@@ -230,14 +232,35 @@ public class StripeServiceImpl implements StripeService {
         }
     }
 
-    private String createSlug(Tenant tenant) {
-        if (tenant != null) {
-            String slug = StringUtils.createSlug(tenant.getNombreNegocio(), tenant.getId());
-            tenant.setSlug(slug);
-            tenantRepository.save(tenant);
-            return slug;
-        }
-        return null;
+    @Override
+    public Map<String, Object> createPaymentIntent(PagoDto pagoDto) throws Exception {
+
+        Map<String, String> metadata = new HashMap<>();
+        metadata.put("userId", String.valueOf(pagoDto.getUserId()));
+
+        // Primero crea (o busca) un customer en Stripe
+        Map<String, Object> customerParams = new HashMap<>();
+        customerParams.put("email", pagoDto.getEmail());
+        customerParams.put("name", pagoDto.getName());
+        Customer customer = Customer.create(customerParams);
+
+        Map<String, Object> params = new HashMap<>();
+        params.put("amount", pagoDto.getAmount()); // en centavos
+        params.put("currency", pagoDto.getCurrency());
+        params.put("description", "Suscripción Lealtix - " + pagoDto.getPlan());
+        params.put("receipt_email", pagoDto.getEmail());
+        params.put("customer", customer.getId());
+        params.put("metadata", metadata);
+
+        Map<String, Object> autoPayment = new HashMap<>();
+        autoPayment.put("enabled", true);
+        params.put("automatic_payment_methods", autoPayment);
+
+        PaymentIntent paymentIntent = PaymentIntent.create(params);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("clientSecret", paymentIntent.getClientSecret());
+        return response;
     }
 
 }

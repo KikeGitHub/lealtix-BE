@@ -32,8 +32,8 @@ public class InvitationController {
      */
     @Operation(summary = "Generar invitación", description = "Genera una invitación para el registro de un tenant.")
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Invitación enviada exitosamente"),
-        @ApiResponse(responseCode = "400", description = "Solicitud inválida")
+            @ApiResponse(responseCode = "200", description = "Invitación enviada exitosamente"),
+            @ApiResponse(responseCode = "400", description = "Solicitud inválida")
     })
     @PostMapping("/invite")
     public ResponseEntity<GenericResponse> invite(@RequestBody PreRegistroDTO dto, HttpServletRequest request) {
@@ -48,16 +48,21 @@ public class InvitationController {
      */
     @Operation(summary = "Validar token de invitación", description = "Valida el token de invitación para el registro.")
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Token válido"),
-        @ApiResponse(responseCode = "400", description = "Token inválido")
+            @ApiResponse(responseCode = "200", description = "Token válido"),
+            @ApiResponse(responseCode = "400", description = "Token inválido")
     })
     @GetMapping("/validate-token")
     public ResponseEntity<GenericResponse> validateToken(@RequestParam String token) {
-        ValidateTokenResponse response = invitationService.validateToken(token);
-        if (response != null && response.isOk()) {
-            return ResponseEntity.ok(new GenericResponse(200, "SUCCESS", response));
-        } else {
-            return ResponseEntity.status(400).body(new GenericResponse(400, "Token inválido o expirado", response));
+        try {
+            ValidateTokenResponse response = invitationService.validateToken(token);
+            if (response != null && response.isOk()) {
+                return ResponseEntity.ok(new GenericResponse(200, "SUCCESS", response));
+            } else {
+                return ResponseEntity.status(400).body(new GenericResponse(400, "Token inválido o expirado", response));
+            }
+        } catch (Exception e) {
+            log.error("Error logging token: {}", e.getMessage());
+            return ResponseEntity.status(400).body(new GenericResponse(400, "Token inválido o expirado", null));
         }
     }
 }

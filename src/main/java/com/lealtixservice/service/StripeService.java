@@ -15,4 +15,6 @@ public interface StripeService {
     PagoDto getCheckoutSession(String sessionId) throws StripeException;
 
     PagoDto getCheckoutSessionCancel(String sessionId);
+
+    Map<String, Object> createPaymentIntent(PagoDto pagoDto) throws Exception;
 }

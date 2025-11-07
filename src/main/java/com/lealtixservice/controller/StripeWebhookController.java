@@ -1,5 +1,6 @@
 package com.lealtixservice.controller;
 
+import com.lealtixservice.dto.PagoDto;
 import com.lealtixservice.service.StripeWebhookService;
 import com.stripe.exception.SignatureVerificationException;
 import com.stripe.model.Event;
@@ -7,47 +8,74 @@ import com.stripe.net.Webhook;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.util.ContentCachingRequestWrapper;
 
-import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 
-@Tag(name = "Stripe Webhook", description = "Endpoints para recibir y procesar webhooks de Stripe")
+@Slf4j
+@Tag(name = "Stripe Webhook", description = "Recibe y procesa eventos enviados por Stripe")
 @RestController
 @RequestMapping("/stripe")
 public class StripeWebhookController {
 
-    @Value("${stripe.webhook.secret}")
+    @Value("${stripe.webhook.secret:}")
     private String endpointSecret;
 
     @Autowired
     private StripeWebhookService stripeWebhookService;
 
-    @Operation(summary = "Recibe eventos webhook de Stripe", description = "Recibe y procesa eventos enviados por Stripe. Verifica la firma y maneja los eventos principales.")
-    @PostMapping("/webhook")
-    public ResponseEntity<String> handleStripeWebhook(HttpServletRequest request,
-                                                      @RequestHeader(name = "Stripe-Signature", required = false) String sigHeader) {
-        String payload = getRawBody(request);
-        if (sigHeader == null) {
+    @Operation(summary = "Recibe eventos webhook de Stripe", description = "Verifica la firma y procesa eventos principales")
+    @PostMapping(value = "/webhook", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<String> handleStripeWebhook(
+            HttpServletRequest request,
+            @RequestHeader(name = "Stripe-Signature", required = false) String sigHeader) {
+
+        String payload;
+        try {
+            payload = getRawBody(request);
+        } catch (IOException e) {
+            log.error("❌ Error al leer el cuerpo de la petición: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Error leyendo payload");
+        }
+
+        if (sigHeader == null || sigHeader.isBlank()) {
+            log.warn("⚠️ Falta Stripe-Signature header");
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Falta Stripe-Signature");
         }
+
+        if (endpointSecret == null || endpointSecret.isBlank()) {
+            log.error("❌ stripe.webhook.secret no está configurado");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Webhook secret no configurado");
+        }
+
         Event event;
         try {
             event = Webhook.constructEvent(payload, sigHeader, endpointSecret);
         } catch (SignatureVerificationException e) {
+            log.error("❌ Firma inválida: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Firma inválida");
+        } catch (Exception e) {
+            log.error("❌ Error construyendo el evento de Stripe: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Payload inválido");
         }
 
+        log.info("✅ Evento Stripe validado correctamente: type={} id={}", event.getType(), event.getId());
+        PagoDto pagoDto;
         switch (event.getType()) {
             case "checkout.session.completed":
-                stripeWebhookService.handleCheckoutSessionCompleted(event);
+                pagoDto = stripeWebhookService.handleCheckoutSessionCompleted(event);
                 break;
             case "payment_intent.succeeded":
                 stripeWebhookService.handlePaymentIntentSucceeded(event);
@@ -56,22 +84,23 @@ public class StripeWebhookController {
                 stripeWebhookService.handlePaymentIntentFailed(event);
                 break;
             default:
-                // Otros eventos pueden ser manejados aquí si es necesario
+                log.info("ℹ️ Evento no manejado: {}", event.getType());
                 break;
         }
-        return ResponseEntity.ok("Evento procesado");
+
+        return ResponseEntity.ok("Evento procesado correctamente");
     }
 
-    private String getRawBody(HttpServletRequest request) {
-        StringBuilder sb = new StringBuilder();
-        try (BufferedReader reader = request.getReader()) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                sb.append(line);
+    private String getRawBody(HttpServletRequest request) throws IOException {
+        if (request instanceof ContentCachingRequestWrapper wrapper) {
+            byte[] cached = wrapper.getContentAsByteArray();
+            if (cached != null && cached.length > 0) {
+                return new String(cached, StandardCharsets.UTF_8);
             }
-        } catch (IOException e) {
-            // Manejo de error de lectura
         }
-        return sb.toString();
+        try (InputStream is = request.getInputStream()) {
+            byte[] bytes = is.readAllBytes();
+            return new String(bytes, StandardCharsets.UTF_8);
+        }
     }
 }
