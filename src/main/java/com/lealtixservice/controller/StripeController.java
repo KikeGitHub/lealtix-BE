@@ -47,24 +47,6 @@ public class StripeController {
         }
     }
 
-    @Operation(summary = "Obtener sesión de checkout", description = "Obtiene los detalles de una sesión de checkout de Stripe por su ID.")
-    @GetMapping("/checkout-session/{sessionId}")
-    public ResponseEntity<GenericResponse> getCheckoutSession(@PathVariable String sessionId) {
-        try {
-            PagoDto pagoDto = stripeService.getCheckoutSession(sessionId);
-            if (pagoDto != null) {
-                return ResponseEntity.status(HttpStatus.OK)
-                        .body(new GenericResponse(200, "SUCCESS", pagoDto));
-            }else{
-                return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(new GenericResponse(404, "NOT FOUND", null));
-            }
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new GenericResponse(500, "Internal server error", null));
-        }
-    }
-
     @Operation(summary = "Obtener sesión de checkout cancelada", description = "Obtiene los detalles de una sesión de checkout cancelada de Stripe por su ID.")
     @GetMapping("/checkout-cancel/{sessionId}")
     public ResponseEntity<GenericResponse> getCheckoutCancel(@PathVariable String sessionId) {

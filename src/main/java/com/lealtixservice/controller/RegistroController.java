@@ -37,6 +37,7 @@ public class RegistroController {
             return ResponseEntity.status(HttpStatus.CREATED)
                 .body(new GenericResponse(200, "SUCCESS", MapperUtils.toAppUserDTO(appUser)));
         } catch (IllegalArgumentException e) {
+           log.error("Registration error: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(new GenericResponse(500, e.getMessage(), null));
         } catch (Exception e) {
@@ -60,6 +61,7 @@ public class RegistroController {
             return ResponseEntity.status(HttpStatus.OK)
                 .body(new GenericResponse(201, "SUCCESS", null));
         } catch (IllegalArgumentException e) {
+            log.error("Payment registration error: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(new GenericResponse(404, e.getMessage(), null));
         } catch (Exception e) {

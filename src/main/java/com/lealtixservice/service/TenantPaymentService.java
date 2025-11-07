@@ -14,6 +14,5 @@ public interface TenantPaymentService {
     List<TenantPayment> findAll();
     void deleteById(Long id);
 
-    TenantPayment intentPayment(PagoDto pagoDto, String status);
-}
+    TenantPayment intentPayment(PagoDto pagoDto, String status);}
 
