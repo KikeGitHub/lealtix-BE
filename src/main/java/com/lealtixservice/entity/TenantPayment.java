@@ -33,6 +33,8 @@ public class TenantPayment {
     private String stripePaymentId;
     private String stripeMode;
     private String userEmail;
+    private String userName;
+    private String receiptUrl;
     @ManyToOne
     @JoinColumn(name = "user_id")
     private AppUser appUser;

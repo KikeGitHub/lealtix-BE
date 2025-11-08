@@ -54,7 +54,7 @@ public class PreRegistroServiceImpl implements PreRegistroService {
                 .dynamicData(Map.of(
                         "name", dto.getNombre(),
                         "link", link,
-                        "logoUrl", "http://cdn.mcauto-images-production.sendgrid.net/b30f9991de8e45d3/af636f80-aa14-4886-9b12-ff4865e26908/627x465.png"
+                        "logoUrl", "https://res.cloudinary.com/lealtix-media/image/upload/v1759897289/lealtix_logo_transp_qcp5h9.png"
                 ))
                 .build();
         emailservice.sendEmailWithTemplate(emailDTO);

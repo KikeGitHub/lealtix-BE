@@ -1,4 +1,4 @@
-package com.lealtixservice.service;
+package com.lealtixservice.service.impl;
 
 import com.lealtixservice.config.SendGridTemplates;
 import com.lealtixservice.dto.EmailDTO;
@@ -7,6 +7,7 @@ import com.lealtixservice.entity.*;
 import com.lealtixservice.repository.PreRegistroRepository;
 import com.lealtixservice.repository.TenantPaymentRepository;
 import com.lealtixservice.repository.TenantRepository;
+import com.lealtixservice.service.*;
 import com.lealtixservice.util.DateUtils;
 import com.lealtixservice.util.EncrypUtils;
 import com.stripe.Stripe;
@@ -20,7 +21,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.Optional;
@@ -168,6 +168,9 @@ public class StripeWebhookServiceImpl implements StripeWebhookService {
                 throw new IllegalArgumentException("Expected PaymentIntent object");
             }
             PaymentIntent intent = (PaymentIntent) obj;
+            String latestChargeId = intent.getLatestCharge();
+            Charge charge = Charge.retrieve(latestChargeId);
+            String receiptUrl = charge.getReceiptUrl();
 
             Long userId = Long.valueOf(intent.getMetadata().get("userId"));
             String plan = intent.getMetadata().get("plan");
@@ -194,6 +197,7 @@ public class StripeWebhookServiceImpl implements StripeWebhookService {
             tp.setStripePaymentId(intent.getId());
             tp.setStripeMode("payment_intent");
             tp.setStripeSubscriptionId("");
+            tp.setReceiptUrl(receiptUrl);
             try {
                 if (intent.getPaymentMethodConfigurationDetails() != null) {
                     tp.setStripePaymentMethodId(intent.getPaymentMethodConfigurationDetails().getId());
@@ -243,10 +247,11 @@ public class StripeWebhookServiceImpl implements StripeWebhookService {
                     .templateId(sendGridTemplates.getWelcomeTemplate())
                     .dynamicData(Map.of(
                             "name", user.getFullName(),
-                            "link", "http://localhost:4200/admin/wizard?token=" + jwtToken,
-                            "logoUrl", "http://cdn.mcauto-images-production.sendgrid.net/b30f9991de8e45d3/af636f80-aa14-4886-9b12-ff4865e26908/627x465.png",
+                            "link", "http://localhost:4201/admin/wizard?token=" + jwtToken,
+                            "logoUrl", "https://res.cloudinary.com/lealtix-media/image/upload/v1759897289/lealtix_logo_transp_qcp5h9.png",
                             "password", EncrypUtils.decrypPassword(user.getPasswordHash()),
-                            "username", user.getEmail()
+                            "username", user.getEmail(),
+                            "receiptUrl", receiptUrl
                     ))
                     .build();
             emailservice.sendEmailWithTemplate(emailDTO);

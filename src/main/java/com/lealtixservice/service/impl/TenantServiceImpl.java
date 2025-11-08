@@ -1,4 +1,4 @@
-package com.lealtixservice.service;
+package com.lealtixservice.service.impl;
 
 import com.lealtixservice.dto.TenantDTO;
 import com.lealtixservice.dto.TenantWizardDTO;
@@ -7,6 +7,8 @@ import com.lealtixservice.entity.Tenant;
 import com.lealtixservice.entity.TenantConfig;
 import com.lealtixservice.repository.TenantConfigRepository;
 import com.lealtixservice.repository.TenantRepository;
+import com.lealtixservice.service.AppUserService;
+import com.lealtixservice.service.TenantService;
 import com.lealtixservice.util.StringUtils;
 import com.lealtixservice.util.TenantUserMapper;
 import org.springframework.beans.factory.annotation.Autowired;
