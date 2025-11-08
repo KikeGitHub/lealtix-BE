@@ -10,6 +10,7 @@ import com.lealtixservice.repository.TenantRepository;
 import com.lealtixservice.util.DateUtils;
 import com.lealtixservice.util.EncrypUtils;
 import com.stripe.Stripe;
+import com.stripe.model.Charge;
 import com.stripe.model.Event;
 import com.stripe.model.PaymentIntent;
 import com.stripe.model.StripeObject;
@@ -19,8 +20,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.Map;
+import java.util.Optional;
 
 @Slf4j
 @Service
@@ -263,14 +266,126 @@ public class StripeWebhookServiceImpl implements StripeWebhookService {
             }
             PaymentIntent intent = (PaymentIntent) obj;
 
-            System.out.println("❌ Pago fallido:");
-            System.out.println("ID: " + intent.getId());
-            System.out.println("Error: " + intent.getLastPaymentError());
+            log.info("❌ PaymentIntent.failed recibido: id={} amount={} currency={}", intent.getId(), intent.getAmount(), intent.getCurrency());
 
-            // Aquí podrías marcar el pago como fallido o notificar al usuario
+            // Crear registro TenantPayment indicando intento de cobro fallido
+            TenantPayment tp = TenantPayment.builder().build();
+            tp.setCreatedAt(LocalDateTime.now());
+            tp.setEndDate(LocalDateTime.now());
+            // Intentar obtener plan desde metadata si existe
+            String plan = null;
+            try {
+                if (intent.getMetadata() != null) {
+                    plan = intent.getMetadata().get("plan");
+                }
+            } catch (Exception ignored) {
+            }
+            tp.setPlan(plan != null ? plan : "N/A");
+            tp.setStartDate(LocalDateTime.now());
+            tp.setTenant(null);
+            tp.setUIDTenant(null);
+            tp.setDescription("PaymentIntent failed");
+            tp.setStripeCustomerId(intent.getCustomer());
+            // Marcar como FAILED usando el enum como en handleChargeFailed
+            tp.setStatus(com.lealtixservice.enums.PaymentStatus.FAILED.getStatus());
+            tp.setUpdatedAt(LocalDateTime.now());
+            tp.setAmount(intent.getAmount());
+            tp.setStripePaymentId(intent.getId());
+            tp.setStripeMode("payment_intent");
+            tp.setStripeSubscriptionId("");
+            try {
+                if (intent.getPaymentMethodConfigurationDetails() != null) {
+                    tp.setStripePaymentMethodId(intent.getPaymentMethodConfigurationDetails().getId());
+                } else if (intent.getPaymentMethod() != null) {
+                    tp.setStripePaymentMethodId(intent.getPaymentMethod());
+                }
+            } catch (Exception e) {
+                log.debug("paymentMethodConfigurationDetails missing or not expanded: {}", e.getMessage());
+            }
+
+            // Intentar asociar usuario si metadata contiene userId
+            String userEmail = null;
+            try {
+                if (intent.getMetadata() != null && intent.getMetadata().get("userId") != null) {
+                    Long userId = Long.valueOf(intent.getMetadata().get("userId"));
+                    AppUser user = appUserService.findById(userId).orElse(null);
+                    if (user != null) {
+                        tp.setName(user.getFullName());
+                        tp.setAppUser(user);
+                        userEmail = user.getEmail();
+                    }
+                }
+            } catch (Exception e) {
+                log.debug("No se pudo asociar AppUser desde metadata: {}", e.getMessage());
+            }
+
+            // Si no se obtuvo email desde AppUser, intentar extraer desde metadata
+            if (userEmail == null) {
+                try {
+                    if (intent.getMetadata() != null && intent.getMetadata().get("email") != null) {
+                        userEmail = intent.getMetadata().get("email");
+                    }
+                } catch (Exception ignored) {
+                }
+            }
+            tp.setUserEmail(userEmail);
+
+            // Construir descripción más detallada con el último error si existe
+            String lastError = null;
+            try {
+                if (intent.getLastPaymentError() != null) {
+                    lastError = intent.getLastPaymentError().getMessage();
+                }
+            } catch (Exception ignored) {
+            }
+            if (lastError != null && !lastError.isBlank()) {
+                tp.setDescription("PaymentIntent failed: " + lastError);
+            }
+
+            tenantPaymentRepository.save(tp);
+
+            // Aquí se debe implementar el envío de email al usuario notificando el cargo fallido.
+            // Por ahora solo dejamos este comentario como recordatorio.
+
+            log.info("TenantPayment creado para intento fallido: id={} stripeId={}", tp.getId(), tp.getStripePaymentId());
 
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("Error manejando payment_intent.failed: {}", e.getMessage(), e);
+        }
+    }
+
+    @Override
+    public void handleChargeFailed(Event event) {
+        try {
+            StripeObject obj = event.getDataObjectDeserializer().getObject()
+                    .orElseThrow(() -> new IllegalArgumentException("Stripe object is missing"));
+            if (!(obj instanceof Charge)) {
+                log.warn("Charge.failed received but payload is not Charge, type={}", obj.getClass().getSimpleName());
+                return;
+            }
+
+            Charge charge = (Charge) obj;
+            String chargeId = charge.getId();
+            String paymentIntentId = charge.getPaymentIntent();
+            String lookupId = (paymentIntentId != null && !paymentIntentId.isBlank()) ? paymentIntentId : chargeId;
+
+            log.info("❌ charge.failed recibido: chargeId={} paymentIntentId={} amount={} currency={}", chargeId, paymentIntentId, charge.getAmount(), charge.getCurrency());
+
+            Optional<TenantPayment> opt = tenantPaymentRepository.findByStripePaymentId(lookupId);
+            if (opt.isPresent()) {
+                TenantPayment tp = opt.get();
+                tp.setStatus(com.lealtixservice.enums.PaymentStatus.FAILED.getStatus());
+                String failureMessage = charge.getFailureMessage() != null ? charge.getFailureMessage() : charge.getFailureCode();
+                tp.setDescription("Charge failed: " + (failureMessage != null ? failureMessage : "Unknown reason"));
+                tp.setUpdatedAt(LocalDateTime.now());
+                tenantPaymentRepository.save(tp);
+
+            } else {
+                log.warn("No se encontró TenantPayment para stripePaymentId={}", lookupId);
+            }
+
+        } catch (Exception e) {
+            log.error("Error manejando charge.failed: {}", e.getMessage(), e);
         }
     }
 }

@@ -43,6 +43,7 @@ public class StripeWebhookController {
             @RequestHeader(name = "Stripe-Signature", required = false) String sigHeader) {
 
         String payload;
+        boolean resp = true;
         try {
             payload = getRawBody(request);
         } catch (IOException e) {
@@ -82,13 +83,24 @@ public class StripeWebhookController {
                 break;
             case "payment_intent.payment_failed":
                 stripeWebhookService.handlePaymentIntentFailed(event);
+                resp = false;
+                break;
+            case "charge.failed":
+                stripeWebhookService.handleChargeFailed(event);
+                resp = false;
                 break;
             default:
                 log.info("ℹ️ Evento no manejado: {}", event.getType());
                 break;
         }
 
-        return ResponseEntity.ok("Evento procesado correctamente");
+        if(resp){
+            return ResponseEntity.ok("Evento procesado correctamente");
+        }else{
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error procesando el evento");
+        }
+
+
     }
 
     private String getRawBody(HttpServletRequest request) throws IOException {
