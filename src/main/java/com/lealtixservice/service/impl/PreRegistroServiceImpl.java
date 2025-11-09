@@ -7,6 +7,7 @@ import com.lealtixservice.entity.PreRegistro;
 import com.lealtixservice.exception.EmailAlreadyRegisteredException;
 import com.lealtixservice.repository.PreRegistroRepository;
 import com.lealtixservice.service.Emailservice;
+import com.lealtixservice.service.InvitationService;
 import com.lealtixservice.service.PreRegistroService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -20,7 +21,9 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class PreRegistroServiceImpl implements PreRegistroService {
 
+    public static final String INVITED = "INVITED";
     private final Emailservice emailservice;
+    private final InvitationService invitationService;
     private final SendGridTemplates sendGridTemplates;
     private final PreRegistroRepository preRegistroRepository;
 
@@ -36,10 +39,13 @@ public class PreRegistroServiceImpl implements PreRegistroService {
         PreRegistro preRegistro = PreRegistro.builder()
                 .nombre(dto.getNombre())
                 .email(dto.getEmail())
-                .status("PENDING")
+                .status(INVITED)
+                .description("Send invitation email")
                 .fechaRegistro(LocalDateTime.now())
                 .build();
         var response = preRegistroRepository.save(preRegistro);
+        // Generate Invitation
+        String link = invitationService.generateInvitation(dto,"lealtix.com");
         // Send PreRegister Email
         EmailDTO emailDTO = EmailDTO.builder()
                 .to(dto.getEmail())
@@ -47,7 +53,8 @@ public class PreRegistroServiceImpl implements PreRegistroService {
                 .templateId(sendGridTemplates.getPreRegistroTemplate())
                 .dynamicData(Map.of(
                         "name", dto.getNombre(),
-                        "logoUrl", "http://cdn.mcauto-images-production.sendgrid.net/b30f9991de8e45d3/af636f80-aa14-4886-9b12-ff4865e26908/627x465.png"
+                        "link", link,
+                        "logoUrl", "https://res.cloudinary.com/lealtix-media/image/upload/v1759897289/lealtix_logo_transp_qcp5h9.png"
                 ))
                 .build();
         emailservice.sendEmailWithTemplate(emailDTO);
@@ -73,5 +80,10 @@ public class PreRegistroServiceImpl implements PreRegistroService {
         );
 
 
+    }
+
+    @Override
+    public void save(PreRegistro preRegistro) {
+        preRegistroRepository.save(preRegistro);
     }
 }

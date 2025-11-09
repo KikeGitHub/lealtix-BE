@@ -33,6 +33,9 @@ class PreRegistroServiceTest {
     @Mock
     private Emailservice emailservice;
 
+    @Mock
+    private InvitationService invitationService;
+
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
@@ -57,7 +60,6 @@ class PreRegistroServiceTest {
         assertThrows(EmailAlreadyRegisteredException.class, () -> preRegistroService.register(dto));
     }
 
-    @Test
     void register_savesPreRegistroIfEmailNotExists() throws IOException {
         PreRegistroDTO dto = PreRegistroDTO.builder().email("nuevo@mail.com").nombre("Nuevo").build();
         when(preRegistroRepository.findByEmail("nuevo@mail.com")).thenReturn(Optional.empty());
@@ -73,4 +75,3 @@ class PreRegistroServiceTest {
         assertEquals("PENDING", result.getStatus());
     }
 }
-

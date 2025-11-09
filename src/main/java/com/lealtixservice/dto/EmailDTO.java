@@ -3,6 +3,7 @@ package com.lealtixservice.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.util.Map;
@@ -10,6 +11,7 @@ import java.util.Map;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
+@Getter
 @Schema(description = "DTO para el envío de correos electrónicos con plantilla y datos dinámicos")
 public class EmailDTO {
 
