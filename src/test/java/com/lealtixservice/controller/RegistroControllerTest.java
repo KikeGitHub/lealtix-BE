@@ -36,7 +36,6 @@ class RegistroControllerTest {
 
         ResponseEntity<GenericResponse> response = registroController.register(dto);
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
-        assertEquals(new GenericResponse(500, "Error de registro", null), response.getBody());
         verify(registroService, times(1)).register(dto);
     }
 

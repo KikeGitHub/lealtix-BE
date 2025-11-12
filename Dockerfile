@@ -11,7 +11,8 @@ WORKDIR /app
 COPY --from=build /app/target/*.jar app.jar
 EXPOSE 8080
 # Usar la variable de entorno SPRING_PROFILES_ACTIVE para seleccionar el profile.
-# Por defecto la imagen usará 'local' pero puede sobreescribirse en tiempo de ejecución
-ENV SPRING_PROFILES_ACTIVE=local
+# Para producción en Render queremos usar el perfil 'dev' que contiene la configuración de BD.
+# Puedes sobreescribir esta variable en tiempo de ejecución si lo necesitas.
+ENV SPRING_PROFILES_ACTIVE=dev
 # Pasamos el profile al JVM para que Spring Boot cargue application-${profile}.properties
 ENTRYPOINT ["sh", "-c", "java -Dspring.profiles.active=${SPRING_PROFILES_ACTIVE} -jar app.jar"]

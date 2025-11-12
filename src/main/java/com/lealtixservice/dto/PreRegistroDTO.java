@@ -9,10 +9,8 @@ import jakarta.validation.constraints.NotBlank;
 @NoArgsConstructor
 @Getter
 public class PreRegistroDTO {
-    @NotBlank
+
     private String nombre;
-    @NotBlank
-    @Email
     private String email;
 }
 
