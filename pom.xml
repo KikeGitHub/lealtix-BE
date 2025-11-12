@@ -17,12 +17,16 @@
     </parent>
     <properties>
         <java.version>17</java.version>
+        <!-- Ensure Maven reads/writes resources using UTF-8 to avoid MalformedInputException -->
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     </properties>
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
+        <!-- WebFlux removed: using java.net.http.HttpClient to avoid adding reactive deps -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jpa</artifactId>
@@ -112,6 +116,15 @@
     </dependencies>
     <build>
         <plugins>
+            <!-- Configure maven-resources-plugin to use UTF-8 when filtering resources -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <version>3.3.1</version>
+                <configuration>
+                    <encoding>UTF-8</encoding>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>

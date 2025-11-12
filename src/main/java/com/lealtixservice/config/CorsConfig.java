@@ -6,92 +6,103 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.filter.CorsFilter;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import java.util.Arrays;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Set;
+import java.util.stream.Collectors;
 
+/**
+ * Centraliza la configuración CORS para la aplicación.
+ * Lee los orígenes permitidos desde la propiedad `cors.allowed-origins` en application.properties.
+ * Registra configuraciones tanto para WebMvc (controladores) como un CorsFilter global.
+ */
 @Configuration
 public class CorsConfig {
 
-    @Value("${cors.allowed-origins:}")
-    private String allowedOrigins;
+    // Inyecta la lista de orígenes desde application.properties (comma-separated)
+    @Value("${cors.allowed-origins:https://admin.lealtix.com.mx,https://lealtix.com.mx,https://www.lealtix.com.mx}")
+    private String allowedOriginsProp;
+
+    private List<String> parseAllowedOrigins() {
+        return Arrays.stream(allowedOriginsProp.split("\\s*,\\s*"))
+                .filter(s -> s != null && !s.isBlank())
+                .collect(Collectors.toList());
+    }
 
     @Bean
     public WebMvcConfigurer corsConfigurer() {
+        List<String> origins = parseAllowedOrigins();
         return new WebMvcConfigurer() {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
-                String[] stripeOrigins = new String[] {"https://checkout.stripe.com", "https://js.stripe.com"};
-                String[] localDevOrigins = new String[] {"http://localhost:4201", "http://localhost:4200", "http://localhost:5173", "http://localhost:8080"};
-
-                Set<String> originsSet = new LinkedHashSet<>();
-                if (allowedOrigins != null && !allowedOrigins.trim().isEmpty()) {
-                    String[] provided = allowedOrigins.split("\\s*,\\s*");
-                    originsSet.addAll(Arrays.asList(provided));
-                }
-                originsSet.addAll(Arrays.asList(stripeOrigins));
-                originsSet.addAll(Arrays.asList(localDevOrigins));
-
-                String[] origins = originsSet.toArray(new String[0]);
-
-                // Aplicar a API pública del frontend
+                // Mantener mappings existentes y añadir/usar la lista de orígenes desde properties
                 registry.addMapping("/api/**")
-                        .allowedOrigins(origins)
-                        .allowedMethods("GET", "POST", "DELETE", "PUT", "OPTIONS")
+                        .allowedOrigins(origins.toArray(new String[0]))
+                        .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                         .allowedHeaders("*")
                         .exposedHeaders("Authorization", "Content-Type")
                         .allowCredentials(true)
                         .maxAge(3600);
 
                 registry.addMapping("/stripe/**")
-                        .allowedOrigins(origins)
+                        .allowedOrigins(origins.toArray(new String[0]))
                         .allowedMethods("GET", "POST", "OPTIONS")
                         .allowedHeaders("*")
                         .exposedHeaders("Content-Type")
                         .allowCredentials(false)
                         .maxAge(3600);
+
+                // No se registra mapping específico para /dashboard/** porque el proxy fue removido
+                // Si en el futuro se expone una API para dashboard, registra aquí el mapping adecuado.
             }
         };
     }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
-        String[] stripeOrigins = new String[] {"https://checkout.stripe.com", "https://js.stripe.com"};
-        String[] localDevOrigins = new String[] {"http://localhost:4201", "http://localhost:4200", "http://localhost:5173", "http://localhost:8080"};
-
-        Set<String> originsSet = new LinkedHashSet<>();
-        if (allowedOrigins != null && !allowedOrigins.trim().isEmpty()) {
-            String[] provided = allowedOrigins.split("\\s*,\\s*");
-            originsSet.addAll(Arrays.asList(provided));
-        }
-        originsSet.addAll(Arrays.asList(stripeOrigins));
-        originsSet.addAll(Arrays.asList(localDevOrigins));
-
-        List<String> origins = List.copyOf(originsSet);
+        List<String> origins = parseAllowedOrigins();
 
         CorsConfiguration apiConfig = new CorsConfiguration();
         apiConfig.setAllowedOrigins(origins);
-        apiConfig.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        apiConfig.setAllowedHeaders(Arrays.asList("*"));
-        apiConfig.setExposedHeaders(Arrays.asList("Authorization", "Content-Type"));
+        apiConfig.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        apiConfig.setAllowedHeaders(List.of("*"));
+        apiConfig.setExposedHeaders(List.of("Authorization", "Content-Type"));
         apiConfig.setAllowCredentials(true);
         apiConfig.setMaxAge(3600L);
 
         CorsConfiguration stripeConfig = new CorsConfiguration();
         stripeConfig.setAllowedOrigins(origins);
-        stripeConfig.setAllowedMethods(Arrays.asList("GET", "POST", "OPTIONS"));
-        stripeConfig.setAllowedHeaders(Arrays.asList("*"));
-        stripeConfig.setExposedHeaders(Arrays.asList("Content-Type"));
+        stripeConfig.setAllowedMethods(List.of("GET", "POST", "OPTIONS"));
+        stripeConfig.setAllowedHeaders(List.of("*"));
+        stripeConfig.setExposedHeaders(List.of("Content-Type"));
         stripeConfig.setAllowCredentials(false);
         stripeConfig.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/api/**", apiConfig);
         source.registerCorsConfiguration("/stripe/**", stripeConfig);
+
+        // No se registra configuración especial para /dashboard/** (proxy eliminado)
+
         return source;
+    }
+
+    // También registrar un filtro global CORS por si acaso algún componente no respeta CorsConfigurationSource
+    @Bean
+    public CorsFilter corsFilter() {
+        List<String> origins = parseAllowedOrigins();
+        CorsConfiguration cfg = new CorsConfiguration();
+        cfg.setAllowedOrigins(origins);
+        cfg.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        cfg.setAllowedHeaders(List.of("*"));
+        cfg.setAllowCredentials(true);
+        cfg.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", cfg);
+        return new CorsFilter(source);
     }
 }
