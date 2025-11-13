@@ -27,8 +27,14 @@ import java.util.Optional;
 @Service
 public class TenantPaymentServiceImpl implements TenantPaymentService {
 
+    @Value("${lealtix.backend.url}")
+    private String baseUrlBE;
+
+    @Value("${lealtix.dashboard.url}")
+    private String baseUrlDashboard;
+
     private static final Logger log = LoggerFactory.getLogger(TenantPaymentServiceImpl.class);
-    public static final String AUTH_LOGIN = "http://localhost:4201/auth/login";
+    public final String AUTH_LOGIN = baseUrlDashboard + "/dashboard/auth/login";
     public static final String LOGO_LEALTIX = "https://res.cloudinary.com/lealtix-media/image/upload/v1759897289/lealtix_logo_transp_qcp5h9.png";
     @Autowired
     private  TenantPaymentRepository tenantPaymentRepository;
