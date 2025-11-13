@@ -32,6 +32,8 @@ public class StripeWebhookServiceImpl implements StripeWebhookService {
     public static final String COMPLETED = "COMPLETED";
     private final SendGridTemplates sendGridTemplates;
 
+    @Value("${lealtix.dashboard.url}")
+    private String baseUrlDashboard;
 
     @Autowired
     private AppUserService appUserService;
@@ -142,8 +144,8 @@ public class StripeWebhookServiceImpl implements StripeWebhookService {
                     .templateId(sendGridTemplates.getWelcomeTemplate())
                     .dynamicData(Map.of(
                             "name", user.getFullName(),
-                            "link", "http://localhost:4200/admin/wizard?token=" + jwtToken,
-                            "logoUrl", "http://cdn.mcauto-images-production.sendgrid.net/b30f9991de8e45d3/af636f80-aa14-4886-9b12-ff4865e26908/627x465.png",
+                            "link", baseUrlDashboard + "/admin/wizard?token=" + jwtToken,
+                            "logoUrl", "https://res.cloudinary.com/lealtix-media/image/upload/v1759897289/lealtix_logo_transp_qcp5h9.png",
                             "password", EncrypUtils.decrypPassword(user.getPasswordHash()),
                             "username", user.getEmail()
                     ))
@@ -247,7 +249,7 @@ public class StripeWebhookServiceImpl implements StripeWebhookService {
                     .templateId(sendGridTemplates.getWelcomeTemplate())
                     .dynamicData(Map.of(
                             "name", user.getFullName(),
-                            "link", "http://localhost:4201/admin/wizard?token=" + jwtToken,
+                            "link",  baseUrlDashboard + "/admin/wizard?token=" + jwtToken,
                             "logoUrl", "https://res.cloudinary.com/lealtix-media/image/upload/v1759897289/lealtix_logo_transp_qcp5h9.png",
                             "password", EncrypUtils.decrypPassword(user.getPasswordHash()),
                             "username", user.getEmail(),

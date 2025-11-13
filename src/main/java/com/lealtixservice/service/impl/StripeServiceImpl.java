@@ -66,6 +66,12 @@ public class StripeServiceImpl implements StripeService {
     @Value("${stripe.api.key}")
     private String apiKey;
 
+    @Value("${invitation.base-url}")
+    private String baseUrlMain;
+
+    @Value("${lealtix.dashboard.url}")
+    private String baseUrlDashboard;
+
     public StripeServiceImpl(@Value("${stripe.api.key}") String apiKey, SendGridTemplates sendGridTemplates) {
         this.sendGridTemplates = sendGridTemplates;
         Stripe.apiKey = apiKey;
@@ -100,8 +106,8 @@ public class StripeServiceImpl implements StripeService {
 
         Map<String, Object> params = new HashMap<>();
         params.put("mode", "subscription");
-        params.put("success_url", "http://localhost:4200/checkout/success?session_id={CHECKOUT_SESSION_ID}");
-        params.put("cancel_url", "http://localhost:4200/checkout/cancel?session_id={CHECKOUT_SESSION_ID}");
+        params.put("success_url", baseUrlMain + "/checkout/success?session_id={CHECKOUT_SESSION_ID}");
+        params.put("cancel_url", baseUrlMain + "/checkout/cancel?session_id={CHECKOUT_SESSION_ID}");
         params.put("client_reference_id", tenatId);
 
         List<Object> lineItems = new ArrayList<>();
@@ -191,10 +197,11 @@ public class StripeServiceImpl implements StripeService {
                     .templateId(sendGridTemplates.getWelcomeTemplate())
                     .dynamicData(Map.of(
                             "name", user.getFullName(),
-                            "link", "http://localhost:4200/admin/wizard?token=" + jwtToken,
-                            "logoUrl", "http://cdn.mcauto-images-production.sendgrid.net/b30f9991de8e45d3/af636f80-aa14-4886-9b12-ff4865e26908/627x465.png",
+                            "link", baseUrlDashboard + "/admin/wizard?token=" + jwtToken,
+                            "logoUrl", "https://res.cloudinary.com/lealtix-media/image/upload/v1759897289/lealtix_logo_transp_qcp5h9.png",
                             "password", EncrypUtils.decrypPassword(user.getPasswordHash()),
                             "username", user.getEmail()
+
                     ))
                     .build();
             emailservice.sendEmailWithTemplate(emailDTO);
