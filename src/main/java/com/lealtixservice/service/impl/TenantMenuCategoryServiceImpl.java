@@ -1,6 +1,7 @@
 package com.lealtixservice.service.impl;
 
 import com.lealtixservice.dto.CategoryDTO;
+import com.lealtixservice.dto.ReorderCategoryRequest;
 import com.lealtixservice.dto.TenantMenuCategoryDTO;
 import com.lealtixservice.dto.TenantMenuProductDTO;
 import com.lealtixservice.entity.Tenant;
@@ -11,11 +12,15 @@ import com.lealtixservice.repository.TenantMenuProductRepository;
 import com.lealtixservice.service.TenantMenuCategoryService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static java.util.stream.Collectors.toList;
 
@@ -92,11 +97,16 @@ public class TenantMenuCategoryServiceImpl implements TenantMenuCategoryService 
             categoryEntity.setActive(categoryDTO.isActive());
             categoryEntity.setDescripcion(categoryDTO.getDescription());
         } else {
+            // Obtener el máximo displayOrder actual y sumar 1 para la nueva categoría
+            Integer maxDisplayOrder = categoryRepository.findMaxDisplayOrderByTenantId(categoryDTO.getTenantId());
+            Integer newDisplayOrder = (maxDisplayOrder != null ? maxDisplayOrder : 0) + 1;
+
             categoryEntity = TenantMenuCategory.builder()
                     .nombre(categoryDTO.getName())
                     .descripcion(categoryDTO.getDescription())
                     .isActive(categoryDTO.isActive())
                     .tenant(Tenant.builder().id(categoryDTO.getTenantId()).build())
+                    .displayOrder(newDisplayOrder)
                     .createdAt(LocalDateTime.now())
                     .updatedAt(LocalDateTime.now())
                     .build();
@@ -144,7 +154,7 @@ public class TenantMenuCategoryServiceImpl implements TenantMenuCategoryService 
 
     @Override
     public List<CategoryDTO> getCategoriesByTenantId(Long tenantId) {
-        List<TenantMenuCategory> categoriesEntity = categoryRepository.findByTenantId(tenantId);
+        List<TenantMenuCategory> categoriesEntity = categoryRepository.findByTenantIdOrderByDisplayOrderAsc(tenantId);
         if (categoriesEntity == null || categoriesEntity.isEmpty()) {
             return null;
         }
@@ -155,7 +165,36 @@ public class TenantMenuCategoryServiceImpl implements TenantMenuCategoryService 
                         .categoryDescription(cat.getDescripcion())
                         .isActive(cat.isActive())
                         .tenantId(cat.getTenant().getId())
+                        .displayOrder(cat.getDisplayOrder())
                         .build())
                 .collect(toList());
+    }
+
+    @Override
+    @Transactional
+    public void reorderCategories(Long tenantId, List<ReorderCategoryRequest> reorderRequests) {
+        if (reorderRequests == null || reorderRequests.isEmpty()) {
+            throw new IllegalArgumentException("La lista de reordenamiento no puede estar vacía");
+        }
+
+        // Obtener todas las categorías del tenant ordenadas
+        List<TenantMenuCategory> categories = categoryRepository
+                .findByTenantIdOrderByDisplayOrderAsc(tenantId);
+
+        // Crear un mapa para acceso rápido por ID
+        Map<Long, TenantMenuCategory> categoryMap = categories.stream()
+                .collect(Collectors.toMap(TenantMenuCategory::getId, Function.identity()));
+
+        // Actualizar el displayOrder de cada categoría según la nueva posición
+        for (ReorderCategoryRequest request : reorderRequests) {
+            TenantMenuCategory category = categoryMap.get(request.getId());
+            if (category != null && category.getTenant().getId().equals(tenantId)) {
+                category.setDisplayOrder(request.getDisplayOrder());
+                category.setUpdatedAt(LocalDateTime.now());
+            }
+        }
+
+        // Guardar todos los cambios
+        categoryRepository.saveAll(categories);
     }
 }

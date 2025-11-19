@@ -106,6 +106,12 @@ public class TenantMenuProductServiceImpl implements TenantMenuProductService {
         List<TenantMenuProductDTO> products = productRepository.findByCategoryTenantId(tenantId);
         if (products == null) return List.of();
         products.sort((p1, p2) -> {
+            Integer order1 = p1.getCategoryDisplayOrder() != null ? p1.getCategoryDisplayOrder() : Integer.MAX_VALUE;
+            Integer order2 = p2.getCategoryDisplayOrder() != null ? p2.getCategoryDisplayOrder() : Integer.MAX_VALUE;
+            int orderComparison = order1.compareTo(order2);
+            if (orderComparison != 0) {
+                return orderComparison;
+            }
             String c1 = p1.getCategoryName() != null ? p1.getCategoryName() : "";
             String c2 = p2.getCategoryName() != null ? p2.getCategoryName() : "";
             return c1.compareToIgnoreCase(c2);

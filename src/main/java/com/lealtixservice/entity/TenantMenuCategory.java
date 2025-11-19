@@ -28,6 +28,9 @@ public class TenantMenuCategory {
     @Builder.Default
     private boolean isActive = true;
 
+    @Column
+    private Integer displayOrder;
+
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
