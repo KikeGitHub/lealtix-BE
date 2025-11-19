@@ -15,7 +15,8 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/tenant-menu-products")
+@RequestMapping("/api" +
+        "/tenant-menu-products")
 @Tag(name = "TenantMenuProduct", description = "Operaciones sobre productos del menú del tenant")
 public class TenantMenuProductController {
 

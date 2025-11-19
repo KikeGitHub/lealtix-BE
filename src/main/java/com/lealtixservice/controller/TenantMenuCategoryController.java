@@ -2,6 +2,7 @@ package com.lealtixservice.controller;
 
 import com.lealtixservice.dto.CategoryDTO;
 import com.lealtixservice.dto.GenericResponse;
+import com.lealtixservice.dto.ReorderCategoriesRequest;
 import com.lealtixservice.dto.TenantMenuCategoryDTO;
 import com.lealtixservice.dto.TenantMenuProductDTO;
 import com.lealtixservice.entity.TenantMenuCategory;
@@ -93,6 +94,27 @@ public class TenantMenuCategoryController {
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         categoryService.deleteById(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "Reordenar categorías mediante drag and drop")
+    @PutMapping("/tenant/{tenantId}/reorder")
+    public ResponseEntity<GenericResponse> reorderCategories(
+            @PathVariable Long tenantId,
+            @RequestBody ReorderCategoriesRequest request) {
+        try {
+            if (request.getCategories() == null || request.getCategories().isEmpty()) {
+                return ResponseEntity.ok(new GenericResponse(400, "La lista de categorías no puede estar vacía", null));
+            }
+
+            categoryService.reorderCategories(tenantId, request.getCategories());
+            return ResponseEntity.ok(new GenericResponse(200, "Categorías reordenadas exitosamente", null));
+        } catch (IllegalArgumentException e) {
+            log.error("Error de validación al reordenar categorías: ", e);
+            return ResponseEntity.ok(new GenericResponse(400, e.getMessage(), null));
+        } catch (Exception e) {
+            log.error("Error al reordenar categorías: ", e);
+            return ResponseEntity.ok(new GenericResponse(500, "Error interno del servidor", null));
+        }
     }
 }
 

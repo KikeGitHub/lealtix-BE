@@ -1,6 +1,7 @@
 package com.lealtixservice.service;
 
 import com.lealtixservice.dto.CategoryDTO;
+import com.lealtixservice.dto.ReorderCategoryRequest;
 import com.lealtixservice.dto.TenantMenuCategoryDTO;
 import com.lealtixservice.dto.TenantMenuProductDTO;
 import com.lealtixservice.entity.TenantMenuCategory;
@@ -18,5 +19,7 @@ public interface TenantMenuCategoryService {
     TenantMenuCategoryDTO createCategoryProduct(TenantMenuCategoryDTO category);
 
     List<CategoryDTO> getCategoriesByTenantId(Long tenantId);
+
+    void reorderCategories(Long tenantId, List<ReorderCategoryRequest> reorderRequests);
 }
 
