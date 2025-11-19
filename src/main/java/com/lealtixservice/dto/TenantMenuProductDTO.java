@@ -16,6 +16,7 @@ public class TenantMenuProductDTO {
     private  Long categoryId;
     private String categoryName;
     private String categoryDescription;
+    private Integer categoryDisplayOrder;
     private Long tenantId;
     private String name;
     private String description;
