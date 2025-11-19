@@ -105,8 +105,6 @@ public class TenantMenuProductServiceImpl implements TenantMenuProductService {
     public List<TenantMenuProductDTO> getProductsByTenantId(Long tenantId) {
         List<TenantMenuProductDTO> products = productRepository.findByCategoryTenantId(tenantId);
         if (products == null) return List.of();
-        // El ordenamiento principal ya viene del query por displayOrder
-        // Este ordenamiento adicional es por seguridad para casos donde displayOrder sea null
         products.sort((p1, p2) -> {
             Integer order1 = p1.getCategoryDisplayOrder() != null ? p1.getCategoryDisplayOrder() : Integer.MAX_VALUE;
             Integer order2 = p2.getCategoryDisplayOrder() != null ? p2.getCategoryDisplayOrder() : Integer.MAX_VALUE;
@@ -114,7 +112,6 @@ public class TenantMenuProductServiceImpl implements TenantMenuProductService {
             if (orderComparison != 0) {
                 return orderComparison;
             }
-            // Si tienen el mismo displayOrder, ordenar por nombre de categoría
             String c1 = p1.getCategoryName() != null ? p1.getCategoryName() : "";
             String c2 = p2.getCategoryName() != null ? p2.getCategoryName() : "";
             return c1.compareToIgnoreCase(c2);
