@@ -12,9 +12,10 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "campaign", indexes = {
-        @Index(name = "idx_campaign_business", columnList = "businessId"),
+        @Index(name = "idx_campaign_business", columnList = "business_id"),
         @Index(name = "idx_campaign_status", columnList = "status"),
-        @Index(name = "idx_campaign_start_date", columnList = "startDate")
+        @Index(name = "idx_campaign_start_date", columnList = "start_date"),
+        @Index(name = "idx_campaign_business_draft", columnList = "business_id,is_draft")
 })
 @Data
 @Builder
@@ -30,7 +31,7 @@ public class Campaign {
     private CampaignTemplate template; // nullable
 
     @NotNull
-    @Column(nullable = false)
+    @Column(name = "business_id", nullable = false)
     private Long businessId;
 
     @NotBlank
@@ -43,24 +44,27 @@ public class Campaign {
     @Column(length = 2000)
     private String description;
 
-    @Column(length = 500)
+    @Column(name = "image_url", length = 500)
     private String imageUrl;
 
     @Enumerated(EnumType.STRING)
-    @Column(length = 50)
+    @Column(name = "promo_type", length = 50)
     private PromoType promoType;
 
-    @Column(length = 200)
+    @Column(name = "promo_value", length = 200)
     private String promoValue; // porcentaje, monto, producto gratis (según tipo)
 
+    @Column(name = "start_date")
     private LocalDate startDate;
+
+    @Column(name = "end_date")
     private LocalDate endDate;
 
     @Enumerated(EnumType.STRING)
     @Column(length = 50)
     private CampaignStatus status; // draft, active, inactive, scheduled
 
-    @Column(length = 200)
+    @Column(name = "call_to_action", length = 200)
     private String callToAction;
 
     @Column(length = 500)
@@ -71,9 +75,21 @@ public class Campaign {
 
     @Builder.Default
     @NotNull
+    @Column(name = "is_automatic")
     private Boolean isAutomatic = false;
 
+    @Builder.Default
+    @NotNull
+    @Column(name = "is_draft")
+    private Boolean isDraft = false;
+
+    @Column(name = "published_at")
+    private LocalDateTime publishedAt;
+
+    @Column(name = "created_at")
     private LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
     @OneToOne(mappedBy = "campaign", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
@@ -88,6 +104,14 @@ public class Campaign {
     @PreUpdate
     protected void onUpdate() {
         this.updatedAt = LocalDateTime.now();
+    }
+
+    // Método personalizado para sincronizar status e isDraft
+    public void setStatus(CampaignStatus status) {
+        this.status = status;
+        if (status != null) {
+            this.isDraft = (status == CampaignStatus.DRAFT);
+        }
     }
 
     // Método de conveniencia para setear el resultado y mantener consistencia bidireccional

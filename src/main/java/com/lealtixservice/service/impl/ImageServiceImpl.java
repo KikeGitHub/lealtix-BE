@@ -134,6 +134,32 @@ public class ImageServiceImpl implements ImageService {
         return url;
     }
 
+    @Override
+    public String uploadPromoImageBase64(ImageDTO imageDTO) throws IOException {
+        validateImageDTO(imageDTO);
+
+        Tenant tenant;
+        Optional<Tenant> tenantOptional = tenantRepository.findById(imageDTO.getTenantId());
+        if (tenantOptional.isPresent()) {
+            tenant = tenantOptional.get();
+        }else{
+            throw new IllegalArgumentException("Tenant no encontrado con el ID proporcionado");
+        }
+
+        String imgName = "promo_" + StringUtils.createSlug(imageDTO.getPromoName(), tenant.getId());
+        String folder = getFolderByType(imageDTO.getType());
+
+        byte[] imageBytes = Base64.getDecoder().decode(imageDTO.getBase64File());
+        Map<String, Object> uploadResult = uploadToCloudinary(imageBytes, folder, imgName);
+
+        String url = (String) uploadResult.get("secure_url");
+        if (url == null) {
+            throw new IOException("No se pudo obtener la URL de la imagen subida");
+        }
+
+        return url;
+    }
+
     private void validateImageDTO(ImageDTO imageDTO) {
             if (imageDTO.getBase64File() == null || imageDTO.getBase64File().isEmpty()) {
                 throw new IllegalArgumentException("La imagen en base64 no puede estar vacía");
@@ -155,7 +181,17 @@ public class ImageServiceImpl implements ImageService {
         }
 
         private String getFolderByType(String type) {
-            return "logo".equals(type) ? "lealtix/logos" : "lealtix/products";
+            if (type == null) return "lealtix/products";
+            switch (type.toLowerCase()) {
+                case "logo":
+                    return "lealtix/logos";
+                case "product":
+                    return "lealtix/products";
+                case "promotion":
+                    return "lealtix/promos";
+                default:
+                    return "lealtix/products";
+            }
         }
 
         private Map<String, Object> uploadToCloudinary(byte[] imageBytes, String folder, String logoName) throws IOException {

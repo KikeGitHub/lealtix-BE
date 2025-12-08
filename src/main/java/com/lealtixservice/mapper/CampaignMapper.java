@@ -29,7 +29,7 @@ public class CampaignMapper {
                 .status(CampaignStatus.DRAFT)
                 .callToAction(request.getCallToAction())
                 .channels(listToCommaSeparated(request.getChannels()))
-                .segmentation(request.getSegmentation())
+                .segmentation(listToCommaSeparated(request.getSegmentation()))
                 .isAutomatic(Optional.ofNullable(request.getIsAutomatic()).orElse(false))
                 .build();
     }
@@ -71,10 +71,16 @@ public class CampaignMapper {
         if (request.getPromoValue() != null) entity.setPromoValue(request.getPromoValue());
         if (request.getStartDate() != null) entity.setStartDate(request.getStartDate());
         if (request.getEndDate() != null) entity.setEndDate(request.getEndDate());
-        if (request.getStatus() != null) entity.setStatus(parseStatus(request.getStatus()));
+        // Usar setStatus personalizado que sincroniza isDraft automáticamente
+        if (request.getStatus() != null) {
+            CampaignStatus status = parseStatus(request.getStatus());
+            if (status != null) {
+                entity.setStatus(status); // Este método sincroniza isDraft
+            }
+        }
         if (request.getCallToAction() != null) entity.setCallToAction(request.getCallToAction());
         if (request.getChannels() != null) entity.setChannels(listToCommaSeparated(request.getChannels()));
-        if (request.getSegmentation() != null) entity.setSegmentation(request.getSegmentation());
+        if (request.getSegmentation() != null) entity.setSegmentation(listToCommaSeparated(request.getSegmentation()));
         if (request.getIsAutomatic() != null) entity.setIsAutomatic(request.getIsAutomatic());
     }
 
@@ -97,7 +103,7 @@ public class CampaignMapper {
                 .promoValue(campaign.getPromoValue())
                 .startDate(campaign.getStartDate())
                 .endDate(campaign.getEndDate())
-                .status(enumToString(campaign.getStatus()))
+                .status(determineStatus(campaign))
                 .callToAction(campaign.getCallToAction())
                 .channels(channelsList)
                 .segmentation(campaign.getSegmentation())
@@ -155,6 +161,21 @@ public class CampaignMapper {
 
     private static String enumToString(Enum<?> e) {
         return e == null ? null : e.name();
+    }
+
+    private static String determineStatus(Campaign campaign) {
+        if (campaign == null) return null;
+        Boolean isDraft = null;
+        try {
+            isDraft = campaign.getIsDraft();
+        } catch (Exception e) {
+            // ignore if getter not present
+        }
+        if (isDraft != null) {
+            return isDraft ? CampaignStatus.DRAFT.name() : CampaignStatus.ACTIVE.name();
+        }
+        // Fallback to enum status if available
+        return enumToString(campaign.getStatus());
     }
 
     private static String listToCommaSeparated(List<String> list) {

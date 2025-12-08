@@ -22,7 +22,7 @@ public class CreateCampaignRequest {
     private LocalDate endDate;
     private String callToAction;
     private List<String> channels;
-    private String segmentation; // JSON opcional
+    private List<String> segmentation; // Cambiado a lista para aceptar payload del frontend
     private Boolean isAutomatic;
 }
 

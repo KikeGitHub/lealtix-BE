@@ -9,5 +9,13 @@ public interface CampaignService {
     CampaignResponse findById(Long id);
     List<CampaignResponse> findByBusinessId(Long businessId);
     void delete(Long id);
+
+    // Métodos para borradores
+    CampaignResponse createDraft(CreateCampaignDraftDto dto);
+    CampaignResponse updateDraft(Long id, CreateCampaignDraftDto dto);
+    CampaignResponse publishDraft(Long id);
+    CampaignResponse create(CreateCampaignDto dto);
+    List<CampaignResponse> getDraftsByBusiness(Long businessId);
+    List<CampaignResponse> getActiveCampaigns(Long businessId);
 }
 

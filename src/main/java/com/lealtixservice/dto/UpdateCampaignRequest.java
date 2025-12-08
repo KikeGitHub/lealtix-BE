@@ -21,7 +21,7 @@ public class UpdateCampaignRequest {
     private String status;
     private String callToAction;
     private List<String> channels;
-    private String segmentation;
+    private List<String> segmentation;
     private Boolean isAutomatic;
 }
 

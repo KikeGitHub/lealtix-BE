@@ -5,12 +5,16 @@ import com.lealtixservice.exception.ResourceNotFoundException;
 import com.lealtixservice.service.CampaignService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/campaigns")
 @Tag(name = "Campaign", description = "Operaciones sobre campañas")
@@ -41,10 +45,13 @@ public class CampaignController {
             CampaignResponse response = campaignService.update(id, request);
             return ResponseEntity.ok(new GenericResponse(200, "Campaña actualizada", response));
         } catch (ResourceNotFoundException ex) {
+            log.error("Error updating campaign", ex);
             return ResponseEntity.ok(new GenericResponse(404, ex.getMessage(), null));
         } catch (IllegalArgumentException ex) {
+            log.error("Error updating campaign", ex);
             return ResponseEntity.ok(new GenericResponse(400, ex.getMessage(), null));
         } catch (Exception e) {
+            log.error("Error updating campaign", e);
             return ResponseEntity.ok(new GenericResponse(500, "Error interno", null));
         }
     }
@@ -83,6 +90,92 @@ public class CampaignController {
             return ResponseEntity.ok(new GenericResponse(404, ex.getMessage(), null));
         } catch (Exception e) {
             return ResponseEntity.ok(new GenericResponse(500, "Error interno", null));
+        }
+    }
+
+    // ===== ENDPOINTS PARA BORRADORES =====
+
+    @Operation(summary = "Crear campaña directamente (no borrador)")
+    @PostMapping("/final")
+    public ResponseEntity<GenericResponse> createFinal(@Valid @RequestBody CreateCampaignDto dto) {
+        try {
+            CampaignResponse response = campaignService.create(dto);
+            return ResponseEntity.ok(new GenericResponse(201, "Campaña creada exitosamente", response));
+        } catch (ResourceNotFoundException ex) {
+            return ResponseEntity.ok(new GenericResponse(404, ex.getMessage(), null));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.ok(new GenericResponse(400, ex.getMessage(), null));
+        } catch (Exception e) {
+            return ResponseEntity.ok(new GenericResponse(500, "Error interno", null));
+        }
+    }
+
+    @Operation(summary = "Crear borrador de campaña")
+    @PostMapping("/draft")
+    public ResponseEntity<GenericResponse> createDraft(@Valid @RequestBody CreateCampaignDraftDto dto) {
+        try {
+            CampaignResponse response = campaignService.createDraft(dto);
+            return ResponseEntity.ok(new GenericResponse(201, "Borrador creado exitosamente", response));
+        } catch (ResourceNotFoundException ex) {
+            return ResponseEntity.ok(new GenericResponse(404, ex.getMessage(), null));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.ok(new GenericResponse(400, ex.getMessage(), null));
+        } catch (Exception e) {
+            return ResponseEntity.ok(new GenericResponse(500, "Error interno", null));
+        }
+    }
+
+    @Operation(summary = "Actualizar borrador de campaña")
+    @PutMapping("/draft/{id}")
+    public ResponseEntity<GenericResponse> updateDraft(@PathVariable Long id, @Valid @RequestBody CreateCampaignDraftDto dto) {
+        try {
+            CampaignResponse response = campaignService.updateDraft(id, dto);
+            return ResponseEntity.ok(new GenericResponse(200, "Borrador actualizado exitosamente", response));
+        } catch (ResourceNotFoundException ex) {
+            return ResponseEntity.ok(new GenericResponse(404, ex.getMessage(), null));
+        } catch (ResponseStatusException ex) {
+            return ResponseEntity.ok(new GenericResponse(400, ex.getReason(), null));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.ok(new GenericResponse(400, ex.getMessage(), null));
+        } catch (Exception e) {
+            return ResponseEntity.ok(new GenericResponse(500, "Error interno", null));
+        }
+    }
+
+    @Operation(summary = "Publicar borrador de campaña")
+    @PostMapping("/draft/{id}/publish")
+    public ResponseEntity<GenericResponse> publishDraft(@PathVariable Long id) {
+        try {
+            CampaignResponse response = campaignService.publishDraft(id);
+            return ResponseEntity.ok(new GenericResponse(200, "Campaña publicada exitosamente", response));
+        } catch (ResourceNotFoundException ex) {
+            return ResponseEntity.ok(new GenericResponse(404, ex.getMessage(), null));
+        } catch (ResponseStatusException ex) {
+            return ResponseEntity.ok(new GenericResponse(400, ex.getReason(), null));
+        } catch (Exception e) {
+            return ResponseEntity.ok(new GenericResponse(500, "Error interno", null));
+        }
+    }
+
+    @Operation(summary = "Obtener borradores por businessId")
+    @GetMapping("/business/{businessId}/drafts")
+    public ResponseEntity<GenericResponseProd> getDraftsByBusiness(@PathVariable Long businessId) {
+        try {
+            List<CampaignResponse> drafts = campaignService.getDraftsByBusiness(businessId);
+            return ResponseEntity.ok(new GenericResponseProd(200, "Borradores obtenidos exitosamente", drafts, drafts.size()));
+        } catch (Exception e) {
+            return ResponseEntity.ok(new GenericResponseProd(500, "Error interno", null, 0));
+        }
+    }
+
+    @Operation(summary = "Obtener campañas activas por businessId")
+    @GetMapping("/business/{businessId}/active")
+    public ResponseEntity<GenericResponseProd> getActiveCampaigns(@PathVariable Long businessId) {
+        try {
+            List<CampaignResponse> campaigns = campaignService.getActiveCampaigns(businessId);
+            return ResponseEntity.ok(new GenericResponseProd(200, "Campañas activas obtenidas exitosamente", campaigns, campaigns.size()));
+        } catch (Exception e) {
+            return ResponseEntity.ok(new GenericResponseProd(500, "Error interno", null, 0));
         }
     }
 }

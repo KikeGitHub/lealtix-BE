@@ -29,7 +29,8 @@ public class SecurityConfig {
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
                                 "/api/**",
-                                "/stripe/webhook"
+                                "/stripe/webhook",
+                                "/error" // permitir accesso a /error para evitar 403 cuando hay errores anonimos
                         ).permitAll()
                         .anyRequest().authenticated()
                 );
