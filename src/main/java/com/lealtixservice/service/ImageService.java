@@ -12,4 +12,6 @@ public interface ImageService {
     Long uploadImageBase64(ImageDTO imageDTO) throws IOException;
 
     String uploadProdImageBase64(ImageDTO imageDTO) throws IOException;
+
+    String uploadPromoImageBase64(ImageDTO imageDTO) throws IOException;
 }
