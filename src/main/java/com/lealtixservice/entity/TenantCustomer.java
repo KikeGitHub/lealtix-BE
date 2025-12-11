@@ -1,0 +1,78 @@
+package com.lealtixservice.entity;
+
+import jakarta.persistence.*;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "tenant_customer")
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class TenantCustomer {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "tenant_id", nullable = false)
+    @NotNull
+    private Tenant tenant;
+
+    @Column(name = "name", length = 150, nullable = false)
+    @NotBlank
+    private String name;
+
+    @Column(name = "email", length = 150, nullable = false)
+    @NotBlank
+    @Email
+    private String email;
+
+    @Column(name = "gender", length = 10)
+    private String gender;
+
+    @Column(name = "birth_date")
+    private LocalDate birthDate;
+
+    @Column(name = "phone", length = 20)
+    @Size(max = 20)
+    private String phone;
+
+    @Column(name = "created_at", nullable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
+
+    public TenantCustomer(Tenant tenant, String name, String email, String gender, LocalDate birthDate, String phone) {
+        this.tenant = tenant;
+        this.name = name;
+        this.email = email;
+        this.gender = gender;
+        this.birthDate = birthDate;
+        this.phone = phone;
+    }
+
+    @PrePersist
+    protected void onCreate() {
+        this.createdAt = LocalDateTime.now();
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        this.updatedAt = LocalDateTime.now();
+    }
+}
+

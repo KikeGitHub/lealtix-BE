@@ -1,0 +1,13 @@
+package com.lealtixservice.repository;
+
+import com.lealtixservice.entity.TenantCustomer;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+
+@Repository
+public interface TenantCustomerRepository extends JpaRepository<TenantCustomer, Long> {
+    List<TenantCustomer> findByTenantId(Long tenantId);
+}
+
