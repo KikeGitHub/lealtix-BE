@@ -55,24 +55,12 @@ public class TenantCustomer {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-    public TenantCustomer(Tenant tenant, String name, String email, String gender, LocalDate birthDate, String phone) {
-        this.tenant = tenant;
-        this.name = name;
-        this.email = email;
-        this.gender = gender;
-        this.birthDate = birthDate;
-        this.phone = phone;
-    }
+    // Consentimiento para recibir promociones. Por defecto true.
+    @Column(name = "accepted_promotions", nullable = false)
+    private boolean acceptedPromotions = true;
 
-    @PrePersist
-    protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
-    }
+    // Fecha en la que el usuario aceptó recibir promociones
+    @Column(name = "accepted_at")
+    private LocalDate acceptedAt;
 
-    @PreUpdate
-    protected void onUpdate() {
-        this.updatedAt = LocalDateTime.now();
-    }
 }
-

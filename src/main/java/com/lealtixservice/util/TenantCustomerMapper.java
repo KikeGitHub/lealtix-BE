@@ -18,6 +18,8 @@ public class TenantCustomerMapper {
                 .phone(entity.getPhone())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
+                .acceptedPromotions(entity.isAcceptedPromotions())
+                .acceptedAt(entity.getAcceptedAt())
                 .build();
     }
 
@@ -31,7 +33,8 @@ public class TenantCustomerMapper {
                 .gender(dto.getGender())
                 .birthDate(dto.getBirthDate())
                 .phone(dto.getPhone())
+                .acceptedPromotions(dto.getAcceptedPromotions() != null ? dto.getAcceptedPromotions() : true)
+                .acceptedAt(dto.getAcceptedAt())
                 .build();
     }
 }
-

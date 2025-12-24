@@ -7,6 +7,7 @@ import com.lealtixservice.service.TenantCustomerService;
 import com.lealtixservice.util.TenantCustomerMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +18,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Tag(name = "TenantCustomer", description = "Operaciones relacionadas con los clientes de un tenant")
 @RestController
 @RequestMapping("/api/tenant-customers")
@@ -30,12 +32,12 @@ public class TenantCustomerController {
     public ResponseEntity<GenericResponse> create(@RequestBody TenantCustomerDTO customerDTO) {
         try {
             TenantCustomer toSave = TenantCustomerMapper.toEntity(customerDTO);
-            toSave.setCreatedAt(LocalDateTime.now());
             TenantCustomer saved = tenantCustomerService.save(toSave);
             TenantCustomerDTO respDTO = TenantCustomerMapper.toDTO(saved);
             return ResponseEntity.status(HttpStatus.OK)
                     .body(new GenericResponse(200, "SUCCESS", respDTO));
         } catch (Exception e) {
+            log.error("Error creating TenantCustomer", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new GenericResponse(500, e.getMessage(), null));
         }
@@ -104,8 +106,28 @@ public class TenantCustomerController {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(new GenericResponse(404, "NOT FOUND", null));
             }
+            // merge: conservar valores existentes si el DTO no provee campos de consentimiento
+            TenantCustomer existingEntity = existing.get();
             customerDTO.setId(id);
             TenantCustomer toUpdate = TenantCustomerMapper.toEntity(customerDTO);
+
+            // Preserve tenant and createdAt from existing if mapper didn't provide them
+            if (toUpdate.getTenant() == null) {
+                toUpdate.setTenant(existingEntity.getTenant());
+            }
+            if (toUpdate.getCreatedAt() == null) {
+                toUpdate.setCreatedAt(existingEntity.getCreatedAt());
+            }
+
+            // Merge acceptedPromotions: if DTO did not include it (null) keep existing value
+            if (customerDTO.getAcceptedPromotions() == null) {
+                toUpdate.setAcceptedPromotions(existingEntity.isAcceptedPromotions());
+            }
+            // Merge acceptedAt: if DTO did not include it keep existing
+            if (customerDTO.getAcceptedAt() == null) {
+                toUpdate.setAcceptedAt(existingEntity.getAcceptedAt());
+            }
+
             TenantCustomer updated = tenantCustomerService.save(toUpdate);
             TenantCustomerDTO respDTO = TenantCustomerMapper.toDTO(updated);
             return ResponseEntity.status(HttpStatus.OK)
