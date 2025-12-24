@@ -5,9 +5,12 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface TenantCustomerRepository extends JpaRepository<TenantCustomer, Long> {
     List<TenantCustomer> findByTenantId(Long tenantId);
+    Optional<TenantCustomer> findByEmailAndTenantId(String email, Long tenantId);
+    boolean existsByEmailAndTenantId(String email, Long tenantId);
 }
 

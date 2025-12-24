@@ -3,6 +3,7 @@ package com.lealtixservice.service.impl;
 import com.lealtixservice.dto.EmailDTO;
 import com.lealtixservice.entity.Tenant;
 import com.lealtixservice.entity.TenantCustomer;
+import com.lealtixservice.exception.EmailAlreadyRegisteredException;
 import com.lealtixservice.repository.TenantCustomerRepository;
 import com.lealtixservice.repository.TenantRepository;
 import com.lealtixservice.service.Emailservice;
@@ -38,6 +39,20 @@ public class TenantCustomerServiceImpl implements TenantCustomerService {
 
     @Override
     public TenantCustomer save(TenantCustomer customer) {
+
+        // Validar que el email no esté registrado para este tenant
+        if (customer.getTenant() != null && customer.getTenant().getId() != null) {
+            boolean emailExists = tenantCustomerRepository.existsByEmailAndTenantId(
+                customer.getEmail(),
+                customer.getTenant().getId()
+            );
+
+            if (emailExists) {
+                throw new EmailAlreadyRegisteredException(
+                    "El email " + customer.getEmail() + " ya está registrado para este negocio"
+                );
+            }
+        }
 
         customer.setCreatedAt(LocalDateTime.now());
         customer.setUpdatedAt(LocalDateTime.now());
