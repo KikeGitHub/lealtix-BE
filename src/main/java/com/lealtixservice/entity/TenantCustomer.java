@@ -5,17 +5,17 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "tenant_customer")
-@Data
+@Getter
+@Setter
+@ToString(exclude = {"tenant"})
+@EqualsAndHashCode(exclude = {"tenant"})
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor

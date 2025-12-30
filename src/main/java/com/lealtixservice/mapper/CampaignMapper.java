@@ -22,8 +22,7 @@ public class CampaignMapper {
                 .subtitle(request.getSubtitle())
                 .description(request.getDescription())
                 .imageUrl(request.getImageUrl())
-                .promoType(parsePromoType(request.getPromoType()))
-                .promoValue(request.getPromoValue())
+                // NOTA: promoType y promoValue removidos - usar PromotionReward
                 .startDate(request.getStartDate())
                 .endDate(request.getEndDate())
                 .status(CampaignStatus.DRAFT)
@@ -67,8 +66,7 @@ public class CampaignMapper {
         if (request.getSubtitle() != null) entity.setSubtitle(request.getSubtitle());
         if (request.getDescription() != null) entity.setDescription(request.getDescription());
         if (request.getImageUrl() != null) entity.setImageUrl(request.getImageUrl());
-        if (request.getPromoType() != null) entity.setPromoType(parsePromoType(request.getPromoType()));
-        if (request.getPromoValue() != null) entity.setPromoValue(request.getPromoValue());
+        // NOTA: promoType y promoValue removidos - usar PromotionReward
         if (request.getStartDate() != null) entity.setStartDate(request.getStartDate());
         if (request.getEndDate() != null) entity.setEndDate(request.getEndDate());
         // Usar setStatus personalizado que sincroniza isDraft automáticamente
@@ -99,8 +97,9 @@ public class CampaignMapper {
                 .subtitle(campaign.getSubtitle())
                 .description(campaign.getDescription())
                 .imageUrl(campaign.getImageUrl())
-                .promoType(enumToString(campaign.getPromoType()))
-                .promoValue(campaign.getPromoValue())
+                // NOTA: promoType y promoValue removidos - usar PromotionReward
+                .promoType(null) // Mantener por compatibilidad con frontend
+                .promoValue(null) // Mantener por compatibilidad con frontend
                 .startDate(campaign.getStartDate())
                 .endDate(campaign.getEndDate())
                 .status(determineStatus(campaign))

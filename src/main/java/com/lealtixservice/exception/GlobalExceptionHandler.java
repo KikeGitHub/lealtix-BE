@@ -50,6 +50,11 @@ public class GlobalExceptionHandler {
         return ResponseEntity.ok(new GenericResponse(409, ex.getMessage(), new ArrayList<>()));
     }
 
+    @ExceptionHandler(BusinessRuleException.class)
+    public ResponseEntity<GenericResponse> handleBusinessRuleException(BusinessRuleException ex) {
+        return ResponseEntity.ok(new GenericResponse(422, ex.getMessage(), new ArrayList<>()));
+    }
+
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<GenericResponse> handleResponseStatusException(ResponseStatusException ex) {
         int status = ex.getStatusCode().value();
