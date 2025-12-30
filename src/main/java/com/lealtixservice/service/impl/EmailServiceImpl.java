@@ -1,5 +1,6 @@
 package com.lealtixservice.service.impl;
 
+import com.lealtixservice.dto.EmailAttachmentDTO;
 import com.lealtixservice.dto.EmailDTO;
 import com.lealtixservice.entity.EmailLog;
 import com.lealtixservice.service.EmailLogService;
@@ -9,6 +10,7 @@ import com.sendgrid.Request;
 import com.sendgrid.Response;
 import com.sendgrid.SendGrid;
 import com.sendgrid.helpers.mail.Mail;
+import com.sendgrid.helpers.mail.objects.Attachments;
 import com.sendgrid.helpers.mail.objects.Content;
 import com.sendgrid.helpers.mail.objects.Email;
 import com.sendgrid.helpers.mail.objects.Personalization;
@@ -69,6 +71,22 @@ public class EmailServiceImpl implements Emailservice {
             emailDTO.getDynamicData().forEach(personalization::addDynamicTemplateData);
         }
         mail.addPersonalization(personalization);
+
+        // Agregar attachments si existen
+        if (emailDTO.getAttachments() != null && !emailDTO.getAttachments().isEmpty()) {
+            log.info("Agregando {} attachment(s) al email", emailDTO.getAttachments().size());
+            for (EmailAttachmentDTO attachmentDTO : emailDTO.getAttachments()) {
+                Attachments attachment = new Attachments();
+                attachment.setContent(attachmentDTO.getContent());
+                attachment.setType(attachmentDTO.getType());
+                attachment.setFilename(attachmentDTO.getFilename());
+                attachment.setDisposition(attachmentDTO.getDisposition());
+                attachment.setContentId(attachmentDTO.getContentId());
+                mail.addAttachments(attachment);
+                log.debug("Attachment agregado: {} (contentId: {})",
+                    attachmentDTO.getFilename(), attachmentDTO.getContentId());
+            }
+        }
 
         Request request = new Request();
         request.setMethod(Method.POST);

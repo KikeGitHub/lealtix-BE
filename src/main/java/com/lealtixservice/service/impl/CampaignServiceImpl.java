@@ -3,12 +3,15 @@ package com.lealtixservice.service.impl;
 import com.lealtixservice.dto.*;
 import com.lealtixservice.entity.Campaign;
 import com.lealtixservice.entity.CampaignTemplate;
+import com.lealtixservice.entity.PromotionReward;
 import com.lealtixservice.enums.CampaignStatus;
-import com.lealtixservice.enums.PromoType;
+import com.lealtixservice.enums.RewardType;
+import com.lealtixservice.exception.BusinessRuleException;
 import com.lealtixservice.exception.ResourceNotFoundException;
 import com.lealtixservice.mapper.CampaignMapper;
 import com.lealtixservice.repository.CampaignRepository;
 import com.lealtixservice.repository.CampaignTemplateRepository;
+import com.lealtixservice.repository.PromotionRewardRepository;
 import com.lealtixservice.service.CampaignService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -18,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -32,6 +36,7 @@ public class CampaignServiceImpl implements CampaignService {
 
     private final CampaignRepository campaignRepository;
     private final CampaignTemplateRepository templateRepository;
+    private final PromotionRewardRepository promotionRewardRepository;
 
     @Override
     @Transactional
@@ -131,8 +136,6 @@ public class CampaignServiceImpl implements CampaignService {
                 .subtitle(dto.getSubtitle())
                 .description(dto.getDescription())
                 .imageUrl(dto.getImageUrl())
-                .promoType(dto.getPromoType() != null ? PromoType.valueOf(dto.getPromoType()) : null)
-                .promoValue(dto.getPromoValue())
                 .startDate(dto.getStartDate())
                 .endDate(dto.getEndDate())
                 .status(CampaignStatus.DRAFT)
@@ -142,6 +145,9 @@ public class CampaignServiceImpl implements CampaignService {
                 .isAutomatic(dto.getIsAutomatic() != null ? dto.getIsAutomatic() : false)
                 .isDraft(true)
                 .build();
+
+        // NOTA: Los campos promoType y promoValue fueron movidos a PromotionReward
+        // Para configurar el reward, usar el nuevo endpoint de PromotionReward
 
         Campaign saved = campaignRepository.save(campaign);
         return CampaignMapper.toResponse(saved);
@@ -167,8 +173,7 @@ public class CampaignServiceImpl implements CampaignService {
         campaign.setSubtitle(dto.getSubtitle());
         campaign.setDescription(dto.getDescription());
         campaign.setImageUrl(dto.getImageUrl());
-        campaign.setPromoType(dto.getPromoType() != null ? PromoType.valueOf(dto.getPromoType()) : null);
-        campaign.setPromoValue(dto.getPromoValue());
+        // NOTA: promoType y promoValue removidos - usar PromotionReward
         campaign.setStartDate(dto.getStartDate());
         campaign.setEndDate(dto.getEndDate());
         campaign.setCallToAction(dto.getCallToAction());
@@ -263,8 +268,7 @@ public class CampaignServiceImpl implements CampaignService {
                 .subtitle(dto.getSubtitle())
                 .description(dto.getDescription())
                 .imageUrl(dto.getImageUrl())
-                .promoType(dto.getPromoType() != null ? PromoType.valueOf(dto.getPromoType()) : null)
-                .promoValue(dto.getPromoValue())
+                // NOTA: promoType y promoValue removidos - usar PromotionReward
                 .startDate(dto.getStartDate())
                 .endDate(dto.getEndDate())
                 .status(CampaignStatus.ACTIVE)
@@ -278,5 +282,503 @@ public class CampaignServiceImpl implements CampaignService {
 
         Campaign saved = campaignRepository.save(campaign);
         return CampaignMapper.toResponse(saved);
+    }
+
+    /**
+     * REGLA DE NEGOCIO 1: Activación explícita de campaña (FASE 4)
+     *
+     * Una campaña solo puede ser activada si:
+     * - Existe
+     * - Tiene status DRAFT (no se permite reactivar campañas ya activas)
+     * - Tiene un PromotionReward configurado
+     * - El PromotionReward está completo según su tipo (validación estricta)
+     *
+     * Esta fase separa CONFIGURAR reward (fase 3) de ACTIVAR campaña (fase 4).
+     *
+     * @param campaignId ID de la campaña a activar
+     * @return CampaignResponse con la campaña activada
+     * @throws ResourceNotFoundException si la campaña no existe
+     * @throws BusinessRuleException si la campaña no cumple las validaciones requeridas
+     */
+    @Override
+    @Transactional
+    public CampaignResponse activateCampaign(Long campaignId) {
+        log.info("Intentando activar campaña con ID: {}", campaignId);
+
+        // 1. Validar que la campaña exista
+        Campaign campaign = campaignRepository.findById(campaignId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "No se encontró la campaña con ID: " + campaignId));
+
+        // 2. Validar que el status sea DRAFT (no permitir reactivación)
+        if (campaign.getStatus() != CampaignStatus.DRAFT) {
+            log.warn("Intento de activar campaña {} con status {}", campaignId, campaign.getStatus());
+            throw new BusinessRuleException(
+                    "Solo se pueden activar campañas en estado DRAFT. " +
+                    "La campaña actual está en estado: " + campaign.getStatus());
+        }
+
+        // 3. Validar que tenga un PromotionReward asociado
+        PromotionReward reward = promotionRewardRepository.findByCampaignId(campaignId)
+                .orElseThrow(() -> new BusinessRuleException(
+                        "No se puede activar la campaña sin un PromotionReward configurado. " +
+                        "Por favor, configure una recompensa antes de activar la campaña."));
+
+        // 4. Validar que el reward esté completo según su tipo
+        validateRewardCompleteness(reward);
+
+        // 5. Activar la campaña
+        campaign.setStatus(CampaignStatus.ACTIVE);
+        campaign.setPublishedAt(LocalDateTime.now());
+
+        Campaign saved = campaignRepository.save(campaign);
+        log.info("Campaña {} activada exitosamente en FASE 4", campaignId);
+
+        return CampaignMapper.toResponse(saved);
+    }
+
+    /**
+     * Valida que un PromotionReward esté completo y listo para ser usado.
+     * Se asegura de que todos los campos requeridos según el tipo estén presentes.
+     *
+     * @param reward El PromotionReward a validar
+     * @throws BusinessRuleException si el reward no está completo
+     */
+    private void validateRewardCompleteness(PromotionReward reward) {
+        RewardType type = reward.getRewardType();
+
+        if (type == null) {
+            throw new BusinessRuleException("El reward no tiene un tipo definido");
+        }
+
+        switch (type) {
+            case PERCENT_DISCOUNT:
+                if (reward.getNumericValue() == null || reward.getNumericValue().compareTo(BigDecimal.ZERO) <= 0) {
+                    throw new BusinessRuleException(
+                            "El reward tipo PERCENT_DISCOUNT debe tener un 'numericValue' mayor a 0");
+                }
+                if (reward.getNumericValue().compareTo(new BigDecimal("100")) > 0) {
+                    throw new BusinessRuleException(
+                            "El porcentaje de descuento no puede ser mayor a 100");
+                }
+                break;
+
+            case FIXED_AMOUNT:
+                if (reward.getNumericValue() == null || reward.getNumericValue().compareTo(BigDecimal.ZERO) <= 0) {
+                    throw new BusinessRuleException(
+                            "El reward tipo FIXED_AMOUNT debe tener un 'numericValue' mayor a 0");
+                }
+                break;
+
+            case FREE_PRODUCT:
+                if (reward.getProductId() == null) {
+                    throw new BusinessRuleException(
+                            "El reward tipo FREE_PRODUCT debe tener un 'productId' configurado");
+                }
+                break;
+
+            case BUY_X_GET_Y:
+                if (reward.getBuyQuantity() == null || reward.getBuyQuantity() <= 0) {
+                    throw new BusinessRuleException(
+                            "El reward tipo BUY_X_GET_Y debe tener un 'buyQuantity' mayor a 0");
+                }
+                if (reward.getFreeQuantity() == null || reward.getFreeQuantity() <= 0) {
+                    throw new BusinessRuleException(
+                            "El reward tipo BUY_X_GET_Y debe tener un 'freeQuantity' mayor a 0");
+                }
+                break;
+
+            case CUSTOM:
+                // Para CUSTOM no hay validaciones estrictas obligatorias
+                log.info("Validando reward tipo CUSTOM para campaña {}", reward.getCampaign().getId());
+                break;
+
+            default:
+                throw new BusinessRuleException("Tipo de reward no soportado: " + type);
+        }
+
+        log.info("Reward tipo {} validado exitosamente para campaña {}", type, reward.getCampaign().getId());
+    }
+
+    /**
+     * REGLA DE NEGOCIO 2: Creación automática de campaña de bienvenida
+     *
+     * Al crear un tenant, se genera automáticamente una campaña de bienvenida en estado DRAFT.
+     * Esta campaña usa el template de categoría "BIENVENIDA" y está marcada como automática.
+     * No se crea PromotionReward ni Coupons en este momento.
+     *
+     * @param tenantId ID del tenant (businessId) para el cual crear la campaña
+     * @return CampaignResponse con la campaña de bienvenida creada
+     * @throws ResourceNotFoundException si no se encuentra un template de bienvenida
+     */
+    @Override
+    @Transactional
+    public CampaignResponse createWelcomeCampaignForTenant(Long tenantId) {
+        log.info("Creando campaña de bienvenida automática para tenant: {}", tenantId);
+
+        // Buscar el template de bienvenida
+        List<CampaignTemplate> welcomeTemplates = templateRepository.findByCategory("BIENVENIDA");
+        if (welcomeTemplates.isEmpty()) {
+            log.warn("No se encontró template de categoría BIENVENIDA");
+            throw new ResourceNotFoundException(
+                    "No se encontró un template de categoría BIENVENIDA. " +
+                    "Por favor, cree un template de bienvenida antes de crear tenants.");
+        }
+
+        // Usar el primer template activo de bienvenida
+        CampaignTemplate welcomeTemplate = welcomeTemplates.stream()
+                .filter(t -> t.getIsActive() != null && t.getIsActive())
+                .findFirst()
+                .orElse(welcomeTemplates.get(0));
+
+        // Crear la campaña de bienvenida en estado DRAFT
+        Campaign welcomeCampaign = Campaign.builder()
+                .template(welcomeTemplate)
+                .businessId(tenantId)
+                .title(welcomeTemplate.getDefaultTitle() != null ?
+                        welcomeTemplate.getDefaultTitle() : "¡Bienvenido a nuestro programa de fidelización!")
+                .subtitle(welcomeTemplate.getDefaultSubtitle())
+                .description(welcomeTemplate.getDefaultDescription())
+                .imageUrl(welcomeTemplate.getDefaultImageUrl())
+                .status(CampaignStatus.DRAFT)
+                .isAutomatic(true)
+                .isDraft(true)
+                .build();
+
+        Campaign saved = campaignRepository.save(welcomeCampaign);
+        log.info("Campaña de bienvenida creada exitosamente para tenant {} con ID: {}",
+                tenantId, saved.getId());
+
+        return CampaignMapper.toResponse(saved);
+    }
+
+    /**
+     * REGLA DE NEGOCIO 3: Configuración de Reward
+     *
+     * Permite a un tenant configurar o actualizar el reward de una campaña.
+     * La campaña NO se activa en este paso, solo se configura el reward.
+     *
+     * @param campaignId ID de la campaña
+     * @param request Datos del reward a configurar
+     * @return PromotionRewardResponse con el reward configurado
+     * @throws ResourceNotFoundException si la campaña no existe
+     * @throws BusinessRuleException si las validaciones de negocio fallan
+     */
+    @Override
+    @Transactional
+    public PromotionRewardResponse configureReward(Long campaignId, ConfigureRewardRequest request) {
+        log.info("Configurando reward para campaña ID: {} con tipo: {}", campaignId, request.getRewardType());
+
+        // 1. Validar que la campaña exista
+        Campaign campaign = campaignRepository.findById(campaignId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "No se encontró la campaña con ID: " + campaignId));
+
+        // 2. Validar parámetros según el tipo de reward
+        validateRewardParameters(request);
+
+        // 3. Buscar si ya existe un reward para esta campaña
+        PromotionReward existingReward = promotionRewardRepository.findByCampaignId(campaignId)
+                .orElse(null);
+
+        PromotionReward reward;
+        if (existingReward != null) {
+            // Actualizar reward existente
+            log.info("Actualizando reward existente ID: {} para campaña {}", existingReward.getId(), campaignId);
+            reward = updateRewardFromRequest(existingReward, request);
+        } else {
+            // Crear nuevo reward
+            log.info("Creando nuevo reward para campaña {}", campaignId);
+            reward = createRewardFromRequest(campaign, request);
+        }
+
+        // 4. Guardar el reward (NO modificar el status de la campaña)
+        PromotionReward savedReward = promotionRewardRepository.save(reward);
+        log.info("Reward {} configurado exitosamente para campaña {}",
+                savedReward.getId(), campaignId);
+
+        return mapToRewardResponse(savedReward);
+    }
+
+    /**
+     * Valida los parámetros del reward según su tipo.
+     * Lanza BusinessRuleException si falta algún parámetro requerido.
+     */
+    private void validateRewardParameters(ConfigureRewardRequest request) {
+        RewardType type = request.getRewardType();
+
+        switch (type) {
+            case PERCENT_DISCOUNT:
+                if (request.getNumericValue() == null || request.getNumericValue().compareTo(BigDecimal.ZERO) <= 0) {
+                    throw new BusinessRuleException(
+                            "Para reward tipo PERCENT_DISCOUNT, el campo 'numericValue' es obligatorio y debe ser mayor a 0");
+                }
+                if (request.getNumericValue().compareTo(new BigDecimal("100")) > 0) {
+                    throw new BusinessRuleException(
+                            "El porcentaje de descuento no puede ser mayor a 100");
+                }
+                break;
+
+            case FIXED_AMOUNT:
+                if (request.getNumericValue() == null || request.getNumericValue().compareTo(BigDecimal.ZERO) <= 0) {
+                    throw new BusinessRuleException(
+                            "Para reward tipo FIXED_AMOUNT, el campo 'numericValue' es obligatorio y debe ser mayor a 0");
+                }
+                break;
+
+            case FREE_PRODUCT:
+                if (request.getProductId() == null) {
+                    throw new BusinessRuleException(
+                            "Para reward tipo FREE_PRODUCT, el campo 'productId' es obligatorio");
+                }
+                break;
+
+            case BUY_X_GET_Y:
+                if (request.getBuyQuantity() == null || request.getBuyQuantity() <= 0) {
+                    throw new BusinessRuleException(
+                            "Para reward tipo BUY_X_GET_Y, el campo 'buyQuantity' es obligatorio y debe ser mayor a 0");
+                }
+                if (request.getFreeQuantity() == null || request.getFreeQuantity() <= 0) {
+                    throw new BusinessRuleException(
+                            "Para reward tipo BUY_X_GET_Y, el campo 'freeQuantity' es obligatorio y debe ser mayor a 0");
+                }
+                break;
+
+            case CUSTOM:
+                // Para CUSTOM no hay validaciones estrictas
+                log.info("Reward tipo CUSTOM configurado con customConfig: {}", request.getCustomConfig());
+                break;
+
+            default:
+                throw new BusinessRuleException("Tipo de reward no soportado: " + type);
+        }
+    }
+
+    /**
+     * Crea un nuevo PromotionReward a partir del request.
+     */
+    private PromotionReward createRewardFromRequest(Campaign campaign, ConfigureRewardRequest request) {
+        return PromotionReward.builder()
+                .campaign(campaign)
+                .rewardType(request.getRewardType())
+                .numericValue(request.getNumericValue())
+                .productId(request.getProductId())
+                .buyQuantity(request.getBuyQuantity())
+                .freeQuantity(request.getFreeQuantity())
+                .customConfig(request.getCustomConfig())
+                .description(request.getDescription())
+                .minPurchaseAmount(request.getMinPurchaseAmount())
+                .usageLimit(request.getUsageLimit())
+                .usageCount(0)
+                .build();
+    }
+
+    /**
+     * Actualiza un PromotionReward existente con los datos del request.
+     */
+    private PromotionReward updateRewardFromRequest(PromotionReward existing, ConfigureRewardRequest request) {
+        existing.setRewardType(request.getRewardType());
+        existing.setNumericValue(request.getNumericValue());
+        existing.setProductId(request.getProductId());
+        existing.setBuyQuantity(request.getBuyQuantity());
+        existing.setFreeQuantity(request.getFreeQuantity());
+        existing.setCustomConfig(request.getCustomConfig());
+        existing.setDescription(request.getDescription());
+        existing.setMinPurchaseAmount(request.getMinPurchaseAmount());
+        existing.setUsageLimit(request.getUsageLimit());
+        // NO modificar usageCount al actualizar
+        return existing;
+    }
+
+    /**
+     * Mapea un PromotionReward a PromotionRewardResponse.
+     */
+    private PromotionRewardResponse mapToRewardResponse(PromotionReward reward) {
+        return PromotionRewardResponse.builder()
+                .id(reward.getId())
+                .campaignId(reward.getCampaign().getId())
+                .rewardType(reward.getRewardType())
+                .numericValue(reward.getNumericValue())
+                .productId(reward.getProductId())
+                .buyQuantity(reward.getBuyQuantity())
+                .freeQuantity(reward.getFreeQuantity())
+                .customConfig(reward.getCustomConfig())
+                .description(reward.getDescription())
+                .minPurchaseAmount(reward.getMinPurchaseAmount())
+                .usageLimit(reward.getUsageLimit())
+                .usageCount(reward.getUsageCount())
+                .createdAt(reward.getCreatedAt())
+                .updatedAt(reward.getUpdatedAt())
+                .build();
+    }
+
+    @Override
+    public boolean hasActiveWelcomeCampaign(Long tenantId) {
+        log.info("Verificando si el tenant {} tiene una campaña de bienvenida activa", tenantId);
+        if (tenantId == null) {
+            return false;
+        }
+        // Reglas: template.category = 'General', template.name = 'Bienvenida', status = ACTIVE, endDate null o >= today
+        boolean exists = campaignRepository.existsActiveWelcomeCampaignForTenant(
+                tenantId, CampaignStatus.ACTIVE, "General", "Bienvenida");
+        log.info("Resultado verificación campaña bienvenida para tenant {}: {}", tenantId, exists);
+        return exists;
+    }
+
+    @Override
+    public Campaign getActiveWelcomeCampaignEntity(Long tenantId) {
+        log.info("Obteniendo entidad de campaña de bienvenida activa para tenant {}", tenantId);
+        if (tenantId == null) {
+            log.warn("tenantId es null, retornando null");
+            return null;
+        }
+
+        // Buscar campañas activas de bienvenida (con template y promotionReward precargados)
+        log.debug("Ejecutando query findActiveWelcomeCampaignsForTenant con parámetros: tenantId={}, status=ACTIVE, category=General, name=Bienvenida", tenantId);
+        List<Campaign> campaigns = campaignRepository.findActiveWelcomeCampaignsForTenant(
+                tenantId, CampaignStatus.ACTIVE, "General", "Bienvenida");
+
+        log.debug("Query ejecutado. Número de campañas encontradas: {}", campaigns.size());
+
+        if (campaigns.isEmpty()) {
+            log.warn("No se encontró campaña de bienvenida activa para tenant {}", tenantId);
+            return null;
+        }
+
+        Campaign campaign = campaigns.get(0);
+        log.info("Campaña de bienvenida {} encontrada para tenant {}", campaign.getId(), tenantId);
+
+        // Forzar la inicialización de las relaciones lazy (para evitar LazyInitializationException)
+        try {
+            if (campaign.getTemplate() != null) {
+                campaign.getTemplate().getName(); // Forzar carga del template
+            }
+            if (campaign.getPromotionReward() != null) {
+                campaign.getPromotionReward().getRewardType(); // Forzar carga del promotionReward
+            }
+
+            log.debug("Verificando carga de relaciones - template: {}, promotionReward: {}",
+                campaign.getTemplate() != null ? campaign.getTemplate().getId() : "null",
+                campaign.getPromotionReward() != null ? campaign.getPromotionReward().getId() : "null");
+        } catch (Exception e) {
+            log.error("Error al verificar relaciones de la campaña: {}", e.getMessage());
+        }
+
+        return campaign;
+    }
+
+    /**
+     * Valida todas las campañas de un negocio y retorna el estado de completitud
+     * para mostrar alertas visuales en el UI.
+     *
+     * @param businessId ID del tenant/negocio
+     * @return Lista de resultados de validación por cada campaña
+     */
+    @Override
+    public List<CampaignValidationResult> validateCampaignsForBusiness(Long businessId) {
+        log.info("Validando campañas para businessId: {}", businessId);
+
+        if (businessId == null) {
+            return new ArrayList<>();
+        }
+
+        return campaignRepository.findByBusinessId(businessId).stream()
+                .map(campaign -> {
+                    List<String> missing = validateCampaignCompleteness(campaign);
+                    String severity = missing.isEmpty() ? "OK" : "ACTION_REQUIRED";
+                    return CampaignValidationResult.builder()
+                            .campaignId(campaign.getId())
+                            .configComplete(missing.isEmpty())
+                            .missingItems(missing)
+                            .severity(severity)
+                            .build();
+                })
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Reglas centralizadas de validación de campaña.
+     * Retorna lista de mensajes con lo que falta para que la campaña esté completa.
+     * Lista vacía = campaña completa y lista para activar.
+     *
+     * @param campaign Campaña a validar
+     * @return Lista de mensajes de configuración faltante
+     */
+    private List<String> validateCampaignCompleteness(Campaign campaign) {
+        List<String> errors = new ArrayList<>();
+
+        if (campaign == null) {
+            errors.add("Campaign no encontrada");
+            return errors;
+        }
+
+        // 1. Validar Template
+        if (campaign.getTemplate() == null) {
+            errors.add("Template no configurado");
+        } else {
+            if (campaign.getTemplate().getCategory() == null || campaign.getTemplate().getCategory().trim().isEmpty()) {
+                errors.add("Template: categoría no definida");
+            }
+            if (campaign.getTemplate().getName() == null || campaign.getTemplate().getName().trim().isEmpty()) {
+                errors.add("Template: nombre no definido");
+            }
+        }
+
+        // 2. Validar contenido básico
+        if (campaign.getTitle() == null || campaign.getTitle().trim().length() < 3) {
+            errors.add("Título insuficiente (mínimo 3 caracteres)");
+        }
+        if (campaign.getDescription() == null || campaign.getDescription().trim().length() < 10) {
+            errors.add("Descripción insuficiente (mínimo 10 caracteres)");
+        }
+
+        // 3. Validar fechas
+        if (campaign.getStartDate() == null) {
+            errors.add("Fecha de inicio no configurada");
+        }
+
+        // EndDate puede ser null si la campaña no expira, pero validamos lógica si existe
+        if (campaign.getEndDate() != null) {
+            if (campaign.getStartDate() != null && campaign.getEndDate().isBefore(campaign.getStartDate())) {
+                errors.add("Fecha de fin debe ser posterior a fecha de inicio");
+            }
+            if (campaign.getEndDate().isBefore(LocalDate.now())) {
+                errors.add("Fecha de fin ya expiró");
+            }
+        }
+
+        // 4. Validar canales/segmentación
+        if (campaign.getChannels() == null || campaign.getChannels().trim().isEmpty()) {
+            errors.add("Canales no configurados");
+        }
+
+        // 5. Validar Reward (crítico para activación)
+        // Todas las campañas DRAFT o automáticas requieren reward antes de activarse
+        boolean requiresReward = Boolean.TRUE.equals(campaign.getIsAutomatic())
+                || campaign.getStatus() == CampaignStatus.DRAFT;
+
+        if (requiresReward) {
+            promotionRewardRepository.findByCampaignId(campaign.getId()).ifPresentOrElse(reward -> {
+                try {
+                    // Reutilizar validación de completitud del reward
+                    validateRewardCompleteness(reward);
+                } catch (BusinessRuleException bre) {
+                    errors.add("Reward inválido: " + bre.getMessage());
+                }
+            }, () -> errors.add("Reward no configurado"));
+        }
+
+        // 6. Validar reglas específicas para campañas automáticas
+        if (Boolean.TRUE.equals(campaign.getIsAutomatic())) {
+            if (campaign.getCallToAction() == null || campaign.getCallToAction().trim().isEmpty()) {
+                errors.add("Call to Action requerido para campañas automáticas");
+            }
+            if (campaign.getImageUrl() == null || campaign.getImageUrl().trim().isEmpty()) {
+                errors.add("Imagen requerida para campañas automáticas");
+            }
+        }
+
+        log.debug("Validación de campaña {}: {} errores encontrados", campaign.getId(), errors.size());
+        return errors;
     }
 }

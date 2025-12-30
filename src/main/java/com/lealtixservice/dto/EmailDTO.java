@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
 import java.util.Map;
 
 @Builder
@@ -26,6 +27,9 @@ public class EmailDTO {
 
     @Schema(description = "Datos dinámicos para la plantilla", example = "{ 'nombre': 'Juan', 'codigo': '1234' }")
     private Map<String, Object> dynamicData;
+
+    @Schema(description = "Lista de adjuntos (inline o attachment)")
+    private List<EmailAttachmentDTO> attachments;
 
     public String getTo() {
         return to;
@@ -57,5 +61,13 @@ public class EmailDTO {
 
     public void setDynamicData(Map<String, Object> dynamicData) {
         this.dynamicData = dynamicData;
+    }
+
+    public List<EmailAttachmentDTO> getAttachments() {
+        return attachments;
+    }
+
+    public void setAttachments(List<EmailAttachmentDTO> attachments) {
+        this.attachments = attachments;
     }
 }

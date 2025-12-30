@@ -3,12 +3,13 @@ package com.lealtixservice.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import com.lealtixservice.enums.CampaignStatus;
-import com.lealtixservice.enums.PromoType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "campaign", indexes = {
@@ -17,7 +18,10 @@ import java.time.LocalDateTime;
         @Index(name = "idx_campaign_start_date", columnList = "start_date"),
         @Index(name = "idx_campaign_business_draft", columnList = "business_id,is_draft")
 })
-@Data
+@Getter
+@Setter
+@ToString(exclude = {"template", "result", "promotionReward", "coupons"})
+@EqualsAndHashCode(exclude = {"template", "result", "promotionReward", "coupons"})
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
@@ -47,12 +51,6 @@ public class Campaign {
     @Column(name = "image_url", length = 500)
     private String imageUrl;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "promo_type", length = 50)
-    private PromoType promoType;
-
-    @Column(name = "promo_value", length = 200)
-    private String promoValue; // porcentaje, monto, producto gratis (según tipo)
 
     @Column(name = "start_date")
     private LocalDate startDate;
@@ -95,6 +93,13 @@ public class Campaign {
     @OneToOne(mappedBy = "campaign", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
     private CampaignResult result;
 
+    @OneToOne(mappedBy = "campaign", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
+    private PromotionReward promotionReward;
+
+    @Builder.Default
+    @OneToMany(mappedBy = "campaign", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
+    private List<Coupon> coupons = new ArrayList<>();
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
@@ -106,7 +111,10 @@ public class Campaign {
         this.updatedAt = LocalDateTime.now();
     }
 
-    // Método personalizado para sincronizar status e isDraft
+    /**
+     * Establece el status de la campaña y sincroniza el flag isDraft.
+     * Mantiene consistencia entre status y isDraft automáticamente.
+     */
     public void setStatus(CampaignStatus status) {
         this.status = status;
         if (status != null) {
@@ -114,11 +122,25 @@ public class Campaign {
         }
     }
 
-    // Método de conveniencia para setear el resultado y mantener consistencia bidireccional
+    /**
+     * Establece el resultado de la campaña manteniendo consistencia bidireccional.
+     * @param result El resultado a asociar
+     */
     public void setResultBidirectional(CampaignResult result) {
         this.result = result;
         if (result != null) {
             result.setCampaign(this);
+        }
+    }
+
+    /**
+     * Establece el reward de la campaña manteniendo consistencia bidireccional.
+     * @param reward El reward a asociar
+     */
+    public void setPromotionRewardBidirectional(PromotionReward reward) {
+        this.promotionReward = reward;
+        if (reward != null) {
+            reward.setCampaign(this);
         }
     }
 }

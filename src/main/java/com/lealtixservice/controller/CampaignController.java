@@ -1,6 +1,7 @@
 package com.lealtixservice.controller;
 
 import com.lealtixservice.dto.*;
+import com.lealtixservice.exception.BusinessRuleException;
 import com.lealtixservice.exception.ResourceNotFoundException;
 import com.lealtixservice.service.CampaignService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -178,5 +179,98 @@ public class CampaignController {
             return ResponseEntity.ok(new GenericResponseProd(500, "Error interno", null, 0));
         }
     }
-}
 
+    @Operation(summary = "Configurar reward para una campaña")
+    @PostMapping("/{campaignId}/reward")
+    public ResponseEntity<GenericResponse> configureReward(
+            @PathVariable Long campaignId,
+            @Valid @RequestBody ConfigureRewardRequest request) {
+        try {
+            PromotionRewardResponse response = campaignService.configureReward(campaignId, request);
+            return ResponseEntity.ok(new GenericResponse(200, "Reward configurado exitosamente", response));
+        } catch (ResourceNotFoundException ex) {
+            log.error("Campaña no encontrada: {}", ex.getMessage());
+            return ResponseEntity.ok(new GenericResponse(404, ex.getMessage(), null));
+        } catch (BusinessRuleException ex) {
+            log.error("Error de validación de negocio: {}", ex.getMessage());
+            return ResponseEntity.ok(new GenericResponse(422, ex.getMessage(), null));
+        } catch (Exception e) {
+            log.error("Error configurando reward", e);
+            return ResponseEntity.ok(new GenericResponse(500, "Error interno del servidor", null));
+        }
+    }
+
+    @Operation(summary = "Activar campaña (FASE 4)")
+    @PostMapping("/{id}/activate")
+    public ResponseEntity<GenericResponse> activateCampaign(@PathVariable Long id) {
+        try {
+            CampaignResponse response = campaignService.activateCampaign(id);
+            return ResponseEntity.ok(new GenericResponse(200, "Campaña activada exitosamente", response));
+        } catch (ResourceNotFoundException ex) {
+            log.error("Campaña no encontrada: {}", ex.getMessage());
+            return ResponseEntity.ok(new GenericResponse(404, ex.getMessage(), null));
+        } catch (BusinessRuleException ex) {
+            log.error("Error de validación al activar campaña: {}", ex.getMessage());
+            return ResponseEntity.ok(new GenericResponse(422, ex.getMessage(), null));
+        } catch (Exception e) {
+            log.error("Error activando campaña", e);
+            return ResponseEntity.ok(new GenericResponse(500, "Error interno del servidor", null));
+        }
+    }
+
+    @Operation(summary = "Validar si un tenant tiene campaña de bienvenida activa")
+    @GetMapping("/tenant/{tenantId}/has-welcome")
+    public ResponseEntity<GenericResponse> hasActiveWelcomeCampaign(@PathVariable Long tenantId) {
+        try {
+            boolean hasActive = campaignService.hasActiveWelcomeCampaign(tenantId);
+            WelcomeCheckResponse response = WelcomeCheckResponse.builder()
+                    .tenantId(tenantId)
+                    .hasActiveWelcomeCampaign(hasActive)
+                    .message(hasActive ? "El tenant tiene una campaña de bienvenida activa" :
+                            "El tenant no tiene campañas de bienvenida activas")
+                    .build();
+            return ResponseEntity.ok(new GenericResponse(200, "Verificación completada", response));
+        } catch (Exception e) {
+            log.error("Error verificando campaña de bienvenida para tenant {}", tenantId, e);
+            return ResponseEntity.ok(new GenericResponse(500, "Error interno del servidor", null));
+        }
+    }
+
+    @Operation(summary = "Crear campaña de bienvenida automática para un tenant")
+    @PostMapping("/tenant/{tenantId}/welcome")
+    public ResponseEntity<GenericResponse> createWelcomeCampaignForTenant(@PathVariable Long tenantId) {
+        try {
+            CampaignResponse response = campaignService.createWelcomeCampaignForTenant(tenantId);
+            return ResponseEntity.ok(new GenericResponse(201, "Campaña de bienvenida creada exitosamente", response));
+        } catch (ResourceNotFoundException ex) {
+            log.error("Error creando campaña de bienvenida: {}", ex.getMessage());
+            return ResponseEntity.ok(new GenericResponse(404, ex.getMessage(), null));
+        } catch (Exception e) {
+            log.error("Error creando campaña de bienvenida para tenant {}", tenantId, e);
+            return ResponseEntity.ok(new GenericResponse(500, "Error interno del servidor", null));
+        }
+    }
+
+    @Operation(summary = "Validar configuración de campañas de un negocio (alertas UI)")
+    @GetMapping("/business/{businessId}/validate")
+    public ResponseEntity<GenericResponse> validateCampaignsForBusiness(@PathVariable Long businessId) {
+        try {
+            List<CampaignValidationResult> validations = campaignService.validateCampaignsForBusiness(businessId);
+            return ResponseEntity.ok(new GenericResponse(200, "Validación completada", validations));
+        } catch (Exception e) {
+            log.error("Error validando campañas para businessId {}", businessId, e);
+            return ResponseEntity.ok(new GenericResponse(500, "Error interno del servidor", null));
+        }
+    }
+
+    // DTO interno para respuesta de validación de bienvenida
+    @lombok.Data
+    @lombok.Builder
+    @lombok.NoArgsConstructor
+    @lombok.AllArgsConstructor
+    public static class WelcomeCheckResponse {
+        private Long tenantId;
+        private Boolean hasActiveWelcomeCampaign;
+        private String message;
+    }
+}

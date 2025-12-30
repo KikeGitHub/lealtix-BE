@@ -14,7 +14,10 @@ import java.util.List;
         @Index(name = "idx_campaign_template_category", columnList = "category"),
         @Index(name = "idx_campaign_template_is_active", columnList = "isActive")
 })
-@Data
+@Getter
+@Setter
+@ToString(exclude = {"campaigns"})
+@EqualsAndHashCode(exclude = {"campaigns"})
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor

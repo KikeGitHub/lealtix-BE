@@ -25,4 +25,26 @@ public interface CampaignRepository extends JpaRepository<Campaign, Long> {
     // Precargar template para operaciones donde necesitamos acceder a la relación (evita lazy-loading adicional)
     @Query("select c from Campaign c left join fetch c.template where c.id = :id")
     Optional<Campaign> findByIdWithTemplate(@Param("id") Long id);
+
+    // Nuevo: existencia de campaña activa de bienvenida (template.category = :category AND template.name = :name)
+    @Query("select case when count(c) > 0 then true else false end from Campaign c join c.template t " +
+           "where c.businessId = :businessId and c.status = :status " +
+           "and (c.endDate is null or c.endDate >= CURRENT_DATE) " +
+           "and t.category = :category and t.name = :name")
+    boolean existsActiveWelcomeCampaignForTenant(@Param("businessId") Long businessId,
+                                                @Param("status") CampaignStatus status,
+                                                @Param("category") String category,
+                                                @Param("name") String name);
+
+    // Nuevo: obtener la primera campaña de bienvenida activa (con template y promotionReward precargados)
+    @Query("select distinct c from Campaign c " +
+           "left join fetch c.template t " +
+           "left join fetch c.promotionReward pr " +
+           "where c.businessId = :businessId and c.status = :status " +
+           "and (c.endDate is null or c.endDate >= CURRENT_DATE) " +
+           "and t.category = :category and t.name = :name")
+    List<Campaign> findActiveWelcomeCampaignsForTenant(@Param("businessId") Long businessId,
+                                                       @Param("status") CampaignStatus status,
+                                                       @Param("category") String category,
+                                                       @Param("name") String name);
 }
