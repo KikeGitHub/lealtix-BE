@@ -173,8 +173,9 @@ public class CouponServiceImpl implements CouponService {
                     "El cupón no puede ser canjeado. Estado actual: " + coupon.getStatus());
         }
 
-        // Canjear el cupón
-        coupon.redeem(metadata);
+        // Canjear el cupón (usando la nueva firma con redeemedBy y metadata)
+        // redeemedBy = "SYSTEM" para mantener compatibilidad con el método legacy
+        coupon.redeem("SYSTEM", metadata);
         Coupon saved = couponRepository.save(coupon);
 
         log.info("Cupón {} canjeado exitosamente", code);

@@ -156,7 +156,7 @@ public class TenantCustomerServiceImpl implements TenantCustomerService {
 
                 // Generar QR code para el cupón
                 try {
-                    String redeemUrl = "http://localhost:4200/redeem?code=" + welcomeCoupon.getCode();
+                    String redeemUrl = "http://localhost:4200/redeem?code=" + welcomeCoupon.getQrToken();
                     String qrBase64 = qrCodeService.generateQrCodeBase64(redeemUrl);
 
                     // Crear attachment inline para el QR
