@@ -20,9 +20,19 @@ public interface CouponRepository extends JpaRepository<Coupon, Long> {
     Optional<Coupon> findByCode(String code);
 
     /**
+     * Buscar cupón por QR token (para redención)
+     */
+    Optional<Coupon> findByQrToken(String qrToken);
+
+    /**
      * Verificar si existe un cupón con el código
      */
     boolean existsByCode(String code);
+
+    /**
+     * Verificar si existe un cupón con el QR token
+     */
+    boolean existsByQrToken(String qrToken);
 
     /**
      * Listar cupones de un cliente

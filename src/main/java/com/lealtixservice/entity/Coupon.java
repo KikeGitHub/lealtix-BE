@@ -12,6 +12,7 @@ import java.util.UUID;
 @Entity
 @Table(name = "coupon", indexes = {
         @Index(name = "idx_coupon_code", columnList = "code", unique = true),
+        @Index(name = "idx_coupon_qr_token", columnList = "qr_token", unique = true),
         @Index(name = "idx_coupon_campaign", columnList = "campaign_id"),
         @Index(name = "idx_coupon_customer", columnList = "customer_id"),
         @Index(name = "idx_coupon_status", columnList = "status"),
@@ -58,9 +59,17 @@ public class Coupon {
     @Column(name = "redeemed_at")
     private LocalDateTime redeemedAt;
 
+    // Token único para redención QR (no expone IDs internos)
+    @Column(name = "qr_token", length = 64, unique = true)
+    private String qrToken;
+
     // URL del código QR para canjear el cupón
     @Column(name = "qr_url", length = 500)
     private String qrUrl;
+
+    // Usuario o sistema que redimió el cupón (email, userId, etc.)
+    @Column(name = "redeemed_by", length = 200)
+    private String redeemedBy;
 
     // Metadata adicional (ej. punto de venta donde se redimió)
     @Column(name = "redemption_metadata", columnDefinition = "TEXT")
@@ -70,6 +79,9 @@ public class Coupon {
     protected void onCreate() {
         if (this.code == null || this.code.trim().isEmpty()) {
             this.code = generateCouponCode();
+        }
+        if (this.qrToken == null || this.qrToken.trim().isEmpty()) {
+            this.qrToken = generateQrToken();
         }
         this.createdAt = LocalDateTime.now();
         if (this.status == null) {
@@ -88,6 +100,17 @@ public class Coupon {
     }
 
     /**
+     * Genera un token QR único y seguro para redención.
+     * Este token NO expone IDs internos y es usado para validación y redención.
+     *
+     * @return Token QR único (64 caracteres hexadecimales)
+     */
+    private String generateQrToken() {
+        return UUID.randomUUID().toString().replace("-", "") +
+               UUID.randomUUID().toString().replace("-", "");
+    }
+
+    /**
      * Redime el cupón sin metadata adicional.
      * IMPORTANTE: Este método debe ser llamado desde CouponService
      * dentro de una transacción @Transactional.
@@ -95,7 +118,7 @@ public class Coupon {
      * @throws IllegalStateException si el cupón no está ACTIVE o está expirado
      */
     public void redeem() {
-        this.redeem(null);
+        this.redeem(null, null);
     }
 
     /**
@@ -103,10 +126,11 @@ public class Coupon {
      * IMPORTANTE: Este método debe ser llamado desde CouponService
      * dentro de una transacción @Transactional.
      *
+     * @param redeemedBy Usuario/sistema que redime el cupón
      * @param metadata Información adicional sobre la redención (JSON o texto)
      * @throws IllegalStateException si el cupón no está ACTIVE o está expirado
      */
-    public void redeem(String metadata) {
+    public void redeem(String redeemedBy, String metadata) {
         if (this.status != CouponStatus.ACTIVE) {
             throw new IllegalStateException("El cupón no está en estado ACTIVE");
         }
@@ -115,6 +139,7 @@ public class Coupon {
         }
         this.status = CouponStatus.REDEEMED;
         this.redeemedAt = LocalDateTime.now();
+        this.redeemedBy = redeemedBy;
         this.redemptionMetadata = metadata;
     }
 
