@@ -58,6 +58,11 @@ public class EmailServiceImpl implements Emailservice {
     }
 
     public void sendEmailWithTemplate(EmailDTO emailDTO) throws IOException {
+        log.info("📧 [EmailService] Iniciando envío de email a: {}", emailDTO.getTo());
+        log.debug("[EmailService] Template ID: {}", emailDTO.getTemplateId());
+        log.debug("[EmailService] Subject: {}", emailDTO.getSubject());
+        log.debug("[EmailService] From: {}", emailFrom);
+
         Mail mail = new Mail();
         mail.setFrom(new Email(emailFrom));
         mail.setSubject(emailDTO.getSubject());
@@ -97,8 +102,8 @@ public class EmailServiceImpl implements Emailservice {
         log.info("SendGrid response: {}", response.getStatusCode());
 
         EmailLog emailLog = EmailLog.builder()
-                .entityType(emailDTO.getTemplateId())
-                .entityId(0L)
+                .entityType(emailDTO.getEntityType() != null ? emailDTO.getEntityType() : emailDTO.getTemplateId())
+                .entityId(emailDTO.getEntityId() != null ? emailDTO.getEntityId() : 0L)
                 .email(emailDTO.getTo())
                 .templateName(emailDTO.getTemplateId())
                 .sendgridMessageId(response.getHeaders().get("X-Message-Id") != null ? response.getHeaders().get("X-Message-Id").trim() : null)

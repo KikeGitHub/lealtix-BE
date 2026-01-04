@@ -1,11 +1,13 @@
 package com.lealtixservice.entity;
 
 import com.lealtixservice.enums.RedemptionChannel;
+import com.lealtixservice.enums.RewardType;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Random;
 
@@ -72,6 +74,23 @@ public class CouponRedemption {
 
     @Column(name = "metadata", columnDefinition = "TEXT")
     private String metadata; // Información adicional en JSON
+
+    // Campos de cálculo de descuentos
+    @Column(name = "original_amount", precision = 10, scale = 2)
+    private BigDecimal originalAmount; // Monto original de la cuenta
+
+    @Column(name = "discount_amount", precision = 10, scale = 2)
+    private BigDecimal discountAmount; // Monto del descuento aplicado
+
+    @Column(name = "final_amount", precision = 10, scale = 2)
+    private BigDecimal finalAmount; // Monto final después del descuento
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "coupon_type", length = 50)
+    private RewardType couponType; // Tipo de cupón (PERCENT_DISCOUNT, FIXED_AMOUNT, etc.)
+
+    @Column(name = "coupon_value", precision = 10, scale = 2)
+    private BigDecimal couponValue; // Valor del cupón (porcentaje o monto fijo)
 
     @NotNull
     @Column(name = "redeemed_at", nullable = false)

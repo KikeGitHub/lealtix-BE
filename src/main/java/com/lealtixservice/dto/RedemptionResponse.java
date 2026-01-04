@@ -1,11 +1,13 @@
 package com.lealtixservice.dto;
 
 import com.lealtixservice.enums.RedemptionChannel;
+import com.lealtixservice.enums.RewardType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
@@ -43,6 +45,13 @@ public class RedemptionResponse {
     private Long tenantId;
     private String tenantName;
 
+    // Información de cálculo de descuentos
+    private BigDecimal originalAmount;
+    private BigDecimal discountAmount;
+    private BigDecimal finalAmount;
+    private RewardType couponType;
+    private BigDecimal couponValue;
+
     /**
      * Factory method para redención exitosa
      */
@@ -51,7 +60,9 @@ public class RedemptionResponse {
             String couponCode, Long couponId,
             Long campaignId, String campaignTitle, String benefit,
             String customerName, String customerEmail,
-            Long tenantId, String tenantName) {
+            Long tenantId, String tenantName,
+            BigDecimal originalAmount, BigDecimal discountAmount, BigDecimal finalAmount,
+            RewardType couponType, BigDecimal couponValue) {
 
         return RedemptionResponse.builder()
                 .success(true)
@@ -69,6 +80,11 @@ public class RedemptionResponse {
                 .customerEmail(customerEmail)
                 .tenantId(tenantId)
                 .tenantName(tenantName)
+                .originalAmount(originalAmount)
+                .discountAmount(discountAmount)
+                .finalAmount(finalAmount)
+                .couponType(couponType)
+                .couponValue(couponValue)
                 .build();
     }
 
