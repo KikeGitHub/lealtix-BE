@@ -16,7 +16,10 @@ import java.util.UUID;
         @Index(name = "idx_coupon_campaign", columnList = "campaign_id"),
         @Index(name = "idx_coupon_customer", columnList = "customer_id"),
         @Index(name = "idx_coupon_status", columnList = "status"),
-        @Index(name = "idx_coupon_expires_at", columnList = "expires_at")
+        @Index(name = "idx_coupon_expires_at", columnList = "expires_at"),
+        // Índices compuestos para reportes
+        @Index(name = "idx_coupon_campaign_created", columnList = "campaign_id,created_at"),
+        @Index(name = "idx_coupon_campaign_status", columnList = "campaign_id,status")
 })
 @Getter
 @Setter

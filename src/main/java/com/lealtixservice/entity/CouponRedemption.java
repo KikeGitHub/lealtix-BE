@@ -21,7 +21,10 @@ import java.util.Random;
         @Index(name = "idx_redemption_tenant", columnList = "tenant_id"),
         @Index(name = "idx_redemption_campaign", columnList = "campaign_id"),
         @Index(name = "idx_redemption_date", columnList = "redeemed_at"),
-        @Index(name = "idx_redemption_channel", columnList = "channel")
+        @Index(name = "idx_redemption_channel", columnList = "channel"),
+        // Índices compuestos para reportes y dashboards
+        @Index(name = "idx_redemption_tenant_date", columnList = "tenant_id,redeemed_at"),
+        @Index(name = "idx_redemption_campaign_date", columnList = "campaign_id,redeemed_at")
 })
 @Getter
 @Setter
@@ -78,6 +81,11 @@ public class CouponRedemption {
     // Campos de cálculo de descuentos
     @Column(name = "original_amount", precision = 10, scale = 2)
     private BigDecimal originalAmount; // Monto original de la cuenta
+
+    // Alias semántico para reportes - apunta al monto total de la compra
+    // Usar en queries de dashboard para mayor claridad semántica
+    @Column(name = "purchase_amount", precision = 10, scale = 2)
+    private BigDecimal purchaseAmount; // Monto de la compra asociada a la redención
 
     @Column(name = "discount_amount", precision = 10, scale = 2)
     private BigDecimal discountAmount; // Monto del descuento aplicado
