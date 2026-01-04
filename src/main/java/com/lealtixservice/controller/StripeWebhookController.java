@@ -27,7 +27,7 @@ import java.nio.charset.StandardCharsets;
 @Slf4j
 @Tag(name = "Stripe Webhook", description = "Recibe y procesa eventos enviados por Stripe")
 @RestController
-@RequestMapping("/stripe")
+@RequestMapping("/api/stripe")
 public class StripeWebhookController {
 
     @Value("${stripe.webhook.secret:}")
@@ -97,6 +97,7 @@ public class StripeWebhookController {
         if(resp){
             return ResponseEntity.ok("Evento procesado correctamente");
         }else{
+            log.error("❌ Error procesando el evento de Stripe: type={} id={}", event.getType(), event.getId());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error procesando el evento");
         }
 

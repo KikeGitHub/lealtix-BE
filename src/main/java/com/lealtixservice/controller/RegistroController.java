@@ -4,7 +4,6 @@ import com.lealtixservice.dto.RegistroDto;
 import com.lealtixservice.dto.PagoDto;
 import com.lealtixservice.dto.GenericResponse;
 import com.lealtixservice.entity.AppUser;
-import com.lealtixservice.entity.Tenant;
 import com.lealtixservice.service.RegistroService;
 import com.lealtixservice.util.MapperUtils;
 import io.swagger.v3.oas.annotations.Operation;

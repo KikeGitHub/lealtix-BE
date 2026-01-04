@@ -618,9 +618,8 @@ public class CampaignServiceImpl implements CampaignService {
         if (tenantId == null) {
             return false;
         }
-        // Reglas: template.category = 'General', template.name = 'Bienvenida', status = ACTIVE, endDate null o >= today
-        boolean exists = campaignRepository.existsActiveWelcomeCampaignForTenant(
-                tenantId, CampaignStatus.ACTIVE, "General", "Bienvenida");
+        // Reglas: template.name = 'Bienvenida', status = ACTIVE (fijo en query)
+        boolean exists = campaignRepository.existsActiveWelcomeCampaignForTenant(tenantId, "Bienvenida");
         log.info("Resultado verificación campaña bienvenida para tenant {}: {}", tenantId, exists);
         return exists;
     }

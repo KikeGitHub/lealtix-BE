@@ -54,6 +54,9 @@ public class TenantCustomerServiceImpl implements TenantCustomerService {
     @Value("${sendgrid.templates.welcome-customer}")
     private String welcomeTemplateId;
 
+    @Value("${lealtix.frontend.url}")
+    private String frontendUrl;
+
     @Override
     @Transactional
     public TenantCustomer save(TenantCustomer customer) {
@@ -151,12 +154,12 @@ public class TenantCustomerServiceImpl implements TenantCustomerService {
             List<EmailAttachmentDTO> attachments = new ArrayList<>();
 
             if (welcomeCoupon != null) {
-                dynamicData.put("discount", welcomeCoupon.getCampaign().getDescription());
+                dynamicData.put("discount", welcomeCoupon.getCampaign().getPromotionReward().getDescription());
                 dynamicData.put("couponCode", welcomeCoupon.getCode());
 
                 // Generar QR code para el cupón
                 try {
-                    String redeemUrl = "http://localhost:4200/redeem?code=" + welcomeCoupon.getQrToken();
+                    String redeemUrl = frontendUrl + "/redeem?code=" + welcomeCoupon.getQrToken();
                     String qrBase64 = qrCodeService.generateQrCodeBase64(redeemUrl);
 
                     // Crear attachment inline para el QR
@@ -184,8 +187,13 @@ public class TenantCustomerServiceImpl implements TenantCustomerService {
                 dynamicData.put("hasQr", false);
             }
 
-            String landingUrl = "http://localhost:4200/landing-page?token=" +
-                    (tenant != null && tenant.getSlug() != null ? tenant.getSlug() : "cafecito-lindo-y-querido-14");
+            // Construir URL de landing page usando la propiedad de configuración
+            String landingUrl = "";
+            if (tenant != null && tenant.getSlug() != null && !tenant.getSlug().isEmpty()) {
+                landingUrl = frontendUrl + "/landing-page/" + tenant.getSlug();
+            } else {
+                landingUrl = frontendUrl + "/landing-page";
+            }
             dynamicData.put("landingUrl", landingUrl);
 
             EmailDTO emailDTO = EmailDTO.builder()

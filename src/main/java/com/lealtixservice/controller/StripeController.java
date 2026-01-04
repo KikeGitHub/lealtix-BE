@@ -9,6 +9,7 @@ import com.stripe.model.Price;
 import com.lealtixservice.service.StripeService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
+@Slf4j
 @Tag(name = "Stripe", description = "Operaciones relacionadas con Stripe: productos, precios y sesiones de pago")
 @RestController
 @RequestMapping("/api/stripe")
@@ -32,6 +34,7 @@ public class StripeController {
             Price price = stripeService.getLastCreatedPrice();
             return ResponseEntity.ok().body("Product ID: " + product.getId() + ", Price ID: " + price.getId());
         } catch (Exception e) {
+            log.error("Error creating product with price: {}", e.getMessage(), e);
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
@@ -43,6 +46,7 @@ public class StripeController {
             Map<String, Object> response = stripeService.createCheckoutSession(request.getPriceId(), request.getTenantId());
             return ResponseEntity.ok(response);
         } catch (Exception e) {
+            log.error("Error creating checkout session: {}", e.getMessage(), e);
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
@@ -56,10 +60,12 @@ public class StripeController {
                 return ResponseEntity.status(HttpStatus.OK)
                         .body(new GenericResponse(200, "SUCCESS", pagoDto));
             }else{
+                log.error("Checkout session not found for ID: {}", sessionId);
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
                         .body(new GenericResponse(404, "NOT FOUND", null));
             }
         } catch (Exception e) {
+            log.error("Error fetching canceled checkout session: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(new GenericResponse(500, "Internal server error", null));
         }
