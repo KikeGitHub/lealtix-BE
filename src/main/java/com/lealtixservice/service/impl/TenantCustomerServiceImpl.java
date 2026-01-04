@@ -196,7 +196,15 @@ public class TenantCustomerServiceImpl implements TenantCustomerService {
                     .attachments(attachments.isEmpty() ? null : attachments)
                     .build();
 
+            log.info("Intentando enviar email de bienvenida a: {}, template: {}, tenant: {}",
+                    saved.getEmail(), welcomeTemplateId, tenant != null ? tenant.getNombreNegocio() : "null");
+            log.debug("EmailDTO construido - to: {}, subject: {}, templateId: {}, hasAttachments: {}",
+                    emailDTO.getTo(), emailDTO.getSubject(), emailDTO.getTemplateId(),
+                    emailDTO.getAttachments() != null && !emailDTO.getAttachments().isEmpty());
+            log.debug("DynamicData keys: {}", dynamicData != null ? dynamicData.keySet() : "null");
+
             emailService.sendEmailWithTemplate(emailDTO);
+            log.info("✅ Email de bienvenida enviado exitosamente a: {}", saved.getEmail());
         } catch (IOException ex) {
             log.error("Error sending welcome email to customer: {}", saved.getEmail(), ex);
         } catch (Exception ex) {

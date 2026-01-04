@@ -1,18 +1,30 @@
 package com.lealtixservice.service.impl;
 
+import com.lealtixservice.dto.EmailDTO;
 import com.lealtixservice.dto.RedeemCouponRequest;
 import com.lealtixservice.dto.RedemptionResponse;
 import com.lealtixservice.entity.*;
+import com.lealtixservice.enums.RewardType;
 import com.lealtixservice.repository.CouponRedemptionRepository;
 import com.lealtixservice.repository.CouponRepository;
 import com.lealtixservice.service.CouponRedemptionService;
+import com.lealtixservice.service.Emailservice;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.text.NumberFormat;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 /**
  * Implementación del servicio de redención de cupones.
@@ -24,6 +36,10 @@ public class CouponRedemptionServiceImpl implements CouponRedemptionService {
 
     private final CouponRepository couponRepository;
     private final CouponRedemptionRepository redemptionRepository;
+    private final Emailservice emailService;
+
+    @Value("${sendgrid.templates.coupon-redemption}")
+    private String couponRedemptionTemplateId;
 
     @Override
     @Transactional
@@ -77,7 +93,43 @@ public class CouponRedemptionServiceImpl implements CouponRedemptionService {
             return RedemptionResponse.failure(e.getMessage());
         }
 
-        // 4. Crear registro de auditoría
+        // 4. Calcular descuentos si hay monto original
+        BigDecimal originalAmount = request.getOriginalAmount();
+        BigDecimal discountAmount = null;
+        BigDecimal finalAmount = null;
+        RewardType couponType = null;
+        BigDecimal couponValue = null;
+
+        PromotionReward reward = campaign.getPromotionReward();
+        if (reward != null && originalAmount != null && originalAmount.compareTo(BigDecimal.ZERO) > 0) {
+            couponType = reward.getRewardType();
+
+            if (couponType == RewardType.PERCENT_DISCOUNT && reward.getNumericValue() != null) {
+                // Descuento porcentual
+                couponValue = reward.getNumericValue();
+                discountAmount = originalAmount
+                        .multiply(couponValue)
+                        .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+                finalAmount = originalAmount.subtract(discountAmount);
+
+            } else if (couponType == RewardType.FIXED_AMOUNT && reward.getNumericValue() != null) {
+                // Descuento de monto fijo
+                couponValue = reward.getNumericValue();
+                discountAmount = couponValue;
+                finalAmount = originalAmount.subtract(discountAmount);
+
+                // Validar que el monto final no sea negativo
+                if (finalAmount.compareTo(BigDecimal.ZERO) < 0) {
+                    finalAmount = BigDecimal.ZERO;
+                    discountAmount = originalAmount;
+                }
+            }
+
+            log.info("Cálculo de descuento - Tipo: {}, Valor: {}, Original: {}, Descuento: {}, Final: {}",
+                    couponType, couponValue, originalAmount, discountAmount, finalAmount);
+        }
+
+        // 5. Crear registro de auditoría
         CouponRedemption redemption = CouponRedemption.builder()
                 .couponId(coupon.getId())
                 .tenantId(tenantId)
@@ -90,17 +142,31 @@ public class CouponRedemptionServiceImpl implements CouponRedemptionService {
                 .userAgent(request.getUserAgent())
                 .location(request.getLocation())
                 .metadata(request.getMetadata())
+                .originalAmount(originalAmount)
+                .discountAmount(discountAmount)
+                .finalAmount(finalAmount)
+                .couponType(couponType)
+                .couponValue(couponValue)
                 .redeemedAt(LocalDateTime.now())
                 .build();
 
         redemption = redemptionRepository.save(redemption);
 
-        // 5. Guardar cambios en el cupón
+        // 6. Guardar cambios en el cupón
         couponRepository.save(coupon);
 
         log.info("Cupón {} redimido exitosamente. Redemption ID: {}", coupon.getCode(), redemption.getId());
 
-        // 6. Construir respuesta
+        // 7. Enviar email de confirmación de redención
+        try {
+            sendRedemptionEmail(coupon.getId(), customer, tenant, coupon, redemption.getId(), originalAmount, discountAmount, finalAmount);
+            log.info("Email de redención enviado a: {}", customer.getEmail());
+        } catch (Exception e) {
+            log.error("Error al enviar email de redención para cupón {}: {}", coupon.getCode(), e.getMessage());
+            // No fallar la redención si el email falla
+        }
+
+        // 8. Construir respuesta
         String benefit = getBenefitDescription(campaign);
 
         return RedemptionResponse.success(
@@ -116,7 +182,12 @@ public class CouponRedemptionServiceImpl implements CouponRedemptionService {
                 customer.getName(),
                 customer.getEmail(),
                 tenant.getId(),
-                tenant.getNombreNegocio()
+                tenant.getNombreNegocio(),
+                originalAmount,
+                discountAmount,
+                finalAmount,
+                couponType,
+                couponValue
         );
     }
 
@@ -164,6 +235,55 @@ public class CouponRedemptionServiceImpl implements CouponRedemptionService {
             return reward.getDescription();
         }
         return campaign.getDescription();
+    }
+
+    /**
+     * Envía email de confirmación de redención al cliente.
+     */
+    private void sendRedemptionEmail(Long couponId, TenantCustomer customer, Tenant tenant, Coupon coupon,
+                                     String redemptionId, BigDecimal originalAmount, BigDecimal discountAmount,
+                                     BigDecimal finalAmount) throws IOException {
+
+        // Formatear fecha de redención
+        DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+        String redemptionDate = LocalDateTime.now().format(dateFormatter);
+
+        // Formatear montos en MXN
+        NumberFormat currencyFormat = NumberFormat.getCurrencyInstance(new Locale("es", "MX"));
+        String originalAmountStr = originalAmount != null ? currencyFormat.format(originalAmount) + " MXN" : "N/A";
+        String discountAmountStr = discountAmount != null ? "-" + currencyFormat.format(discountAmount) + " MXN" : "N/A";
+        String finalAmountStr = finalAmount != null ? currencyFormat.format(finalAmount) + " MXN" : "N/A";
+
+        // Obtener logo del tenant (usar un placeholder si no existe)
+        String logoUrl = tenant.getLogoUrl() != null ? tenant.getLogoUrl() :
+                        "https://res.cloudinary.com/demo/image/upload/v1700000000/logo-default.png";
+
+        // Preparar datos dinámicos para el template
+        Map<String, Object> dynamicData = new HashMap<>();
+        dynamicData.put("couponCode", coupon.getCode());
+        dynamicData.put("redemptionDate", redemptionDate);
+        dynamicData.put("originalAmount", originalAmountStr);
+        dynamicData.put("discountAmount", discountAmountStr);
+        dynamicData.put("finalAmount", finalAmountStr);
+        dynamicData.put("tenantName", tenant.getNombreNegocio());
+        dynamicData.put("customerName", customer.getName());
+        dynamicData.put("logoUrl", logoUrl);
+
+        // Crear DTO de email
+        EmailDTO emailDTO = EmailDTO.builder()
+                .to(customer.getEmail())
+                .subject("¡Cupón redimido exitosamente!")
+                .templateId(couponRedemptionTemplateId)
+                .dynamicData(dynamicData)
+                .entityType("COUPON_REDEMPTION")
+                .entityId(couponId) // Usar couponId como referencia ya que EntityLog.entityId es Long
+                .build();
+
+        // Enviar email
+        emailService.sendEmailWithTemplate(emailDTO);
+
+        log.info("Email de redención enviado - Cupón: {}, Cliente: {}, Monto final: {}, RedemptionID: {}",
+                coupon.getCode(), customer.getEmail(), finalAmountStr, redemptionId);
     }
 }
 

@@ -264,7 +264,12 @@ class RedemptionControllerTest {
                 "Juan Pérez",                   // customerName
                 "juan@example.com",             // customerEmail
                 tenantId,                       // tenantId
-                "Mi Negocio"                    // tenantName
+                "Mi Negocio",                   // tenantName
+                null,                           // originalAmount
+                null,                           // discountAmount
+                null,                           // finalAmount
+                null,                           // couponType
+                null                            // couponValue
         );
 
         when(redemptionService.redeemCouponByQrToken(qrToken, request, tenantId)).thenReturn(successResponse);

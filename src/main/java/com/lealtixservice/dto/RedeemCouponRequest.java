@@ -8,6 +8,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
+
 /**
  * DTO para solicitar la redención de un cupón.
  */
@@ -22,6 +24,8 @@ public class RedeemCouponRequest {
 
     @NotNull(message = "El campo 'channel' es requerido")
     private RedemptionChannel channel; // Canal de redención
+
+    private BigDecimal originalAmount; // Monto original de la cuenta antes del descuento
 
     private String location; // Punto de venta, ubicación
 
