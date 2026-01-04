@@ -11,7 +11,9 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "tenant_customer")
+@Table(name = "tenant_customer", indexes = {
+        @Index(name = "idx_tenant_customer_tenant_created", columnList = "tenant_id,created_at")
+})
 @Getter
 @Setter
 @ToString(exclude = {"tenant"})
