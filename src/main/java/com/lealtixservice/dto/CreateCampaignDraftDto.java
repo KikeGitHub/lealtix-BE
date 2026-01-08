@@ -45,7 +45,7 @@ public class CreateCampaignDraftDto {
 
     private List<String> channels;
 
-    // Cambiar a lista para aceptar payload del frontend
+    // Cambiado a lista para aceptar el payload del frontend
     private List<String> segmentation;
 
     private Boolean isAutomatic;
