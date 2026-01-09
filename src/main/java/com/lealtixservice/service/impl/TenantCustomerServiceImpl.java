@@ -54,6 +54,12 @@ public class TenantCustomerServiceImpl implements TenantCustomerService {
     @Value("${sendgrid.templates.welcome-customer}")
     private String welcomeTemplateId;
 
+    @Value("${sendgrid.templates.welcome-customer-no-campaign}")
+    private String welcomeNoCampaignTemplateId;
+
+    @Value("${lealtix.dashboard.url}")
+    private String dashboardUrl;
+
     @Override
     @Transactional
     public TenantCustomer save(TenantCustomer customer) {
@@ -137,26 +143,30 @@ public class TenantCustomerServiceImpl implements TenantCustomerService {
             }
 
             Map<String, Object> dynamicData = new HashMap<>();
-            if (tenant != null) {
-                dynamicData.put("tenantName", tenant.getNombreNegocio());
-                dynamicData.put("logoUrl", tenant.getLogoUrl());
-            } else {
-                dynamicData.put("tenantName", "");
-                dynamicData.put("logoUrl", "");
-            }
-
-            dynamicData.put("customerName", saved.getName());
-
-            // Si se generó cupón, usar datos reales y generar QR
+            String selectedTemplateId;
             List<EmailAttachmentDTO> attachments = new ArrayList<>();
 
+            // Determinar qué template usar según si hay campaña de bienvenida activa
             if (welcomeCoupon != null) {
+                // HAY CAMPAÑA ACTIVA: usar template con cupón y QR
+                log.info("Usando template de bienvenida CON campaña activa (cupón generado)");
+                selectedTemplateId = welcomeTemplateId;
+
+                if (tenant != null) {
+                    dynamicData.put("tenantName", tenant.getNombreNegocio());
+                    dynamicData.put("logoUrl", tenant.getLogoUrl());
+                } else {
+                    dynamicData.put("tenantName", "");
+                    dynamicData.put("logoUrl", "");
+                }
+
+                dynamicData.put("customerName", saved.getName());
                 dynamicData.put("discount", welcomeCoupon.getCampaign().getDescription());
                 dynamicData.put("couponCode", welcomeCoupon.getCode());
 
                 // Generar QR code para el cupón
                 try {
-                    String redeemUrl = "http://localhost:4200/redeem?code=" + welcomeCoupon.getQrToken();
+                    String redeemUrl = dashboardUrl + "/redeem?code=" + welcomeCoupon.getQrToken();
                     String qrBase64 = qrCodeService.generateQrCodeBase64(redeemUrl);
 
                     // Crear attachment inline para el QR
@@ -177,27 +187,36 @@ public class TenantCustomerServiceImpl implements TenantCustomerService {
                         welcomeCoupon.getCode(), qrEx.getMessage());
                     dynamicData.put("hasQr", false);
                 }
-            } else {
-                // Valores dummy por ahora
-                dynamicData.put("discount", "10");
-                dynamicData.put("couponCode", "NOCOUPON");
-                dynamicData.put("hasQr", false);
-            }
 
-            String landingUrl = "http://localhost:4200/landing-page?token=" +
-                    (tenant != null && tenant.getSlug() != null ? tenant.getSlug() : "cafecito-lindo-y-querido-14");
-            dynamicData.put("landingUrl", landingUrl);
+                String landingUrl = "http://localhost:4200/landing-page?token=" +
+                        (tenant != null && tenant.getSlug() != null ? tenant.getSlug() : "cafecito-lindo-y-querido-14");
+                dynamicData.put("landingUrl", landingUrl);
+
+            } else {
+                // NO HAY CAMPAÑA ACTIVA: usar template simplificado sin cupón
+                log.info("Usando template de bienvenida SIN campaña activa (sin cupón)");
+                selectedTemplateId = welcomeNoCampaignTemplateId;
+
+                // Template simplificado solo requiere: tenantName, customerName, logoUrl, landingUrl
+                dynamicData.put("tenantName", tenant != null ? tenant.getNombreNegocio() : "");
+                dynamicData.put("customerName", saved.getName());
+                dynamicData.put("logoUrl", tenant != null && tenant.getLogoUrl() != null ? tenant.getLogoUrl() : "");
+
+                String landingUrl = "http://localhost:4200/landing-page?token=" +
+                        (tenant != null && tenant.getSlug() != null ? tenant.getSlug() : "cafecito-lindo-y-querido-14");
+                dynamicData.put("landingUrl", landingUrl);
+            }
 
             EmailDTO emailDTO = EmailDTO.builder()
                     .to(saved.getEmail())
                     .subject("Bienvenido a " + (tenant != null ? tenant.getNombreNegocio() : "nuestro servicio"))
-                    .templateId(welcomeTemplateId)
+                    .templateId(selectedTemplateId)
                     .dynamicData(dynamicData)
                     .attachments(attachments.isEmpty() ? null : attachments)
                     .build();
 
             log.info("Intentando enviar email de bienvenida a: {}, template: {}, tenant: {}",
-                    saved.getEmail(), welcomeTemplateId, tenant != null ? tenant.getNombreNegocio() : "null");
+                    saved.getEmail(), selectedTemplateId, tenant != null ? tenant.getNombreNegocio() : "null");
             log.debug("EmailDTO construido - to: {}, subject: {}, templateId: {}, hasAttachments: {}",
                     emailDTO.getTo(), emailDTO.getSubject(), emailDTO.getTemplateId(),
                     emailDTO.getAttachments() != null && !emailDTO.getAttachments().isEmpty());
