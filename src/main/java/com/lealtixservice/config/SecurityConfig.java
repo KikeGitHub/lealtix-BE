@@ -24,8 +24,11 @@ public class SecurityConfig {
                 // Usar la configuración CORS central
                 .cors(cors -> cors.configurationSource(corsConfigurationSource))
 
-                // CSRF: habilitado por defecto, pero ignorar el webhook de Stripe
-                .csrf(csrf -> csrf.ignoringRequestMatchers(new AntPathRequestMatcher("/api/stripe/webhook", "POST")))
+                // CSRF: habilitado por defecto, pero ignorar el webhook de Stripe y el preregistro
+                .csrf(csrf -> csrf.ignoringRequestMatchers(
+                        new AntPathRequestMatcher("/api/stripe/webhook", "POST"),
+                        new AntPathRequestMatcher("/api/preregistro", "POST")
+                ))
 
                 // Reglas de autorización
                 .authorizeHttpRequests(authz -> authz
@@ -42,6 +45,9 @@ public class SecurityConfig {
 
                         // Endpoint público: crear payment intent (frontend público)
                         .requestMatchers(HttpMethod.POST, "/api/tenant-payment/create-payment-intent").permitAll()
+
+                        // Endpoint público: preregistro (frontend público)
+                        .requestMatchers(HttpMethod.POST, "/api/preregistro").permitAll()
 
                         // Endpoint público: webhook de Stripe (seguridad por firma en controlador)
                         .requestMatchers(HttpMethod.POST, "/api/stripe/webhook").permitAll()
