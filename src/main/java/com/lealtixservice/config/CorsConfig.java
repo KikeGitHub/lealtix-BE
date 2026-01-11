@@ -47,7 +47,9 @@ public class CorsConfig {
                         .allowCredentials(true)
                         .maxAge(3600);
 
-                registry.addMapping("/stripe/**")
+                // Ajustado: registrar la configuración del webhook de Stripe bajo /api/stripe/**
+                // (el controlador usa @RequestMapping("api/stripe")).
+                registry.addMapping("/api/stripe/**")
                         .allowedOrigins(origins.toArray(new String[0]))
                         .allowedMethods("GET", "POST", "OPTIONS")
                         .allowedHeaders("*")
@@ -83,7 +85,8 @@ public class CorsConfig {
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/api/**", apiConfig);
-        source.registerCorsConfiguration("/stripe/**", stripeConfig);
+        // Ajustado: registrar la config específica para el webhook en /api/stripe/**
+        source.registerCorsConfiguration("/api/stripe/**", stripeConfig);
 
         // No se registra configuración especial para /dashboard/** (proxy eliminado)
 
