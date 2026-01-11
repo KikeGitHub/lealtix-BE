@@ -27,7 +27,7 @@ import java.nio.charset.StandardCharsets;
 @Slf4j
 @Tag(name = "Stripe Webhook", description = "Recibe y procesa eventos enviados por Stripe")
 @RestController
-@RequestMapping("/stripe")
+@RequestMapping("/api/stripe")
 public class StripeWebhookController {
 
     @Value("${stripe.webhook.secret:}")
