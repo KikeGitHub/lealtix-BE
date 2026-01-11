@@ -24,18 +24,26 @@ public class SecurityConfig {
                 // Usar la configuración CORS central
                 .cors(cors -> cors.configurationSource(corsConfigurationSource))
 
-                // CSRF: habilitado por defecto, pero ignorar el webhook de Stripe y el preregistro
+                // CSRF: habilitado por defecto, pero ignorar webhooks y endpoints públicos que reciben POST
                 .csrf(csrf -> csrf.ignoringRequestMatchers(
                         new AntPathRequestMatcher("/api/stripe/webhook", "POST"),
-                        new AntPathRequestMatcher("/api/preregistro", "POST")
+                        new AntPathRequestMatcher("/api/preregistro", "POST"),
+                        new AntPathRequestMatcher("/api/tenant-payment/create-payment-intent", "POST")
                 ))
+
+                // Deshabilitar formLogin y httpBasic para evitar redirects/popups en endpoints públicos
+                .formLogin(form -> form.disable())
+                .httpBasic(basic -> basic.disable())
 
                 // Reglas de autorización
                 .authorizeHttpRequests(authz -> authz
-                        // Permitir preflight CORS
+                        // Permitir preflight CORS (OPTIONS requests)
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                        // Documentación y error endpoint
+                        // Raíz y recursos estáticos
+                        .requestMatchers("/", "/favicon.ico", "/robots.txt").permitAll()
+
+                        // Documentación Swagger y error endpoint
                         .requestMatchers(
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
@@ -54,6 +62,15 @@ public class SecurityConfig {
 
                         // El resto requiere autenticación
                         .anyRequest().authenticated()
+                )
+
+                // Manejo de excepciones: retornar 401 en lugar de 403 para requests sin auth
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            response.setStatus(401);
+                            response.setContentType("application/json");
+                            response.getWriter().write("{\"error\":\"Unauthorized\",\"message\":\"Authentication required\"}");
+                        })
                 );
 
         return http.build();

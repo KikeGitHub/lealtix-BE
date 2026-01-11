@@ -75,9 +75,10 @@ public class CorsConfig {
         apiConfig.setAllowCredentials(true);
         apiConfig.setMaxAge(3600L);
 
+        // Configuración específica para webhook de Stripe (sin Origin header)
         CorsConfiguration stripeConfig = new CorsConfiguration();
-        stripeConfig.setAllowedOrigins(origins);
-        stripeConfig.setAllowedMethods(List.of("GET", "POST", "OPTIONS"));
+        stripeConfig.setAllowedOriginPatterns(List.of("*"));  // Stripe no envía Origin
+        stripeConfig.setAllowedMethods(List.of("POST", "OPTIONS"));
         stripeConfig.setAllowedHeaders(List.of("*"));
         stripeConfig.setExposedHeaders(List.of("Content-Type"));
         stripeConfig.setAllowCredentials(false);
@@ -85,8 +86,8 @@ public class CorsConfig {
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/api/**", apiConfig);
-        // Ajustado: registrar la config específica para el webhook en /api/stripe/**
-        source.registerCorsConfiguration("/api/stripe/**", stripeConfig);
+        // Webhook de Stripe tiene su propia configuración permisiva (seguridad por firma)
+        source.registerCorsConfiguration("/api/stripe/webhook", stripeConfig);
 
         // No se registra configuración especial para /dashboard/** (proxy eliminado)
 

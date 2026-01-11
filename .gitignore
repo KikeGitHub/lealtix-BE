@@ -36,3 +36,10 @@ jacoco.exec
 
 # Archivos con datos sensibles
 *.env
+environment*.env
+environment*.env.*
+.env
+.env.*
+*.env.local
+*.env.production
+*.env.development

@@ -35,6 +35,36 @@ Este servicio backend está desarrollado en **Java Spring Boot** y tiene como ob
 
 ---
 
+## 🔐 Seguridad y CORS (Actualizado 2026-01-10)
+
+### Endpoints Públicos (No requieren autenticación)
+- `POST /api/tenant-payment/create-payment-intent` - Crear intención de pago desde frontend
+- `POST /api/preregistro` - Pre-registro de usuarios desde landing page
+- `POST /api/stripe/webhook` - Webhook de Stripe (seguridad por firma)
+- `OPTIONS /**` - Preflight CORS
+
+### Endpoints Protegidos
+- Todos los demás endpoints requieren JWT token
+- Respuesta sin autenticación: `401 Unauthorized`
+
+### Configuración CORS
+Los orígenes permitidos se configuran en `application.properties`:
+```properties
+# Local
+cors.allowed-origins=http://localhost:4200,http://localhost:4201
+
+# Production
+cors.allowed-origins=https://admin.lealtix.com.mx,https://lealtix.com.mx,https://www.lealtix.com.mx
+```
+
+### Seguridad del Webhook de Stripe
+El webhook **no usa autenticación JWT** porque:
+- Es llamado desde servidores de Stripe (no navegadores)
+- La seguridad se maneja por **validación de firma** usando `stripe.webhook.secret`
+- CSRF está deshabilitado (no es vulnerable a CSRF)
+
+---
+
 ## 🛠 Tecnologías
 
 - **Lenguaje:** Java 17+
