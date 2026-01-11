@@ -40,6 +40,25 @@ public class ImageController {
         return ResponseEntity.ok(tenantId.toString());
     }
 
+    @Operation(summary = "Subir imagen para producto en base64", description = "Sube una imagen para producto en base64 a Cloudinary y retorna la URL.")
+    @PostMapping(value = "/uploadImgProd", consumes = "application/json")
+    public ResponseEntity<String> uploadImgProd(@RequestBody ImageDTO imageDTO) {
+        String tenantId = null;
+        try {
+            if (imageDTO.getBase64File() == null || imageDTO.getBase64File().isEmpty()) {
+                return ResponseEntity.badRequest().body("La imagen en base64 no puede estar vacía.");
+            }
+            if (imageDTO.getType() == null || imageDTO.getType().isEmpty()) {
+                return ResponseEntity.badRequest().body("El tipo de imagen es obligatorio.");
+            }
+            tenantId = imageService.uploadProdImageBase64(imageDTO);
+        } catch (Exception e) {
+            log.error("Error al subir la imagen de producto: ", e);
+            return ResponseEntity.status(500).body("Error al procesar la solicitud: " + e.getMessage());
+        }
+        return ResponseEntity.ok(tenantId.toString());
+    }
+
     @Operation(summary = "Subir imagen para promoción en base64", description = "Sube una imagen para promoción en base64 a Cloudinary y retorna la URL.")
     @PostMapping(value = "/uploadImgPromo", consumes = "application/json")
     public ResponseEntity<String> uploadImgPromo(@RequestBody ImageDTO imageDTO) {
