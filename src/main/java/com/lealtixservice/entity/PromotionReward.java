@@ -56,7 +56,7 @@ public class PromotionReward {
     private String customConfig;
 
     // Descripción del reward para mostrar al usuario
-    @Column(length = 500)
+    @Column(name = "description", length = 500, nullable = true)
     private String description;
 
     // Monto mínimo de compra requerido (opcional)
@@ -112,4 +112,3 @@ public class PromotionReward {
         return usageCount >= usageLimit;
     }
 }
-

@@ -24,6 +24,8 @@ public class PromotionRewardServiceImpl implements PromotionRewardService {
 
     private final PromotionRewardRepository promotionRewardRepository;
 
+    private static final int DESCRIPTION_MAX_LENGTH = 500;
+
     @Override
     @Transactional(readOnly = true)
     public PromotionRewardResponse findById(Long rewardId) {
@@ -73,7 +75,12 @@ public class PromotionRewardServiceImpl implements PromotionRewardService {
         reward.setBuyQuantity(dto.getBuyQuantity());
         reward.setFreeQuantity(dto.getFreeQuantity());
         reward.setCustomConfig(dto.getCustomConfig());
-        reward.setDescription(dto.getDescription());
+        // Sanitizar y validación de longitud para description
+        String desc = dto.getDescription() == null ? null : dto.getDescription().trim();
+        if (desc != null && desc.length() > DESCRIPTION_MAX_LENGTH) {
+            throw new BusinessRuleException("La descripción no puede superar " + DESCRIPTION_MAX_LENGTH + " caracteres");
+        }
+        reward.setDescription(desc);
         reward.setMinPurchaseAmount(dto.getMinPurchaseAmount());
         reward.setUsageLimit(dto.getUsageLimit());
 
