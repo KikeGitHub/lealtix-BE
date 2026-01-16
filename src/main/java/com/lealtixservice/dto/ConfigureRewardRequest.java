@@ -2,6 +2,7 @@ package com.lealtixservice.dto;
 
 import com.lealtixservice.enums.RewardType;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -36,8 +37,8 @@ public class ConfigureRewardRequest {
     private String customConfig;
 
     // Campos opcionales
+    @Size(max = 500, message = "La descripción no puede tener más de 500 caracteres")
     private String description;
     private BigDecimal minPurchaseAmount;
     private Integer usageLimit;
 }
-

@@ -54,6 +54,12 @@ public class TenantCustomerServiceImpl implements TenantCustomerService {
     @Value("${sendgrid.templates.welcome-customer}")
     private String welcomeTemplateId;
 
+    @Value("${sendgrid.templates.welcome-customer-no-coupon}")
+    private String welcomeNoCouponTemplateId;
+
+    @Value("${lealtix.dashboard.url}")
+    private String dashboardUrl;
+
     @Override
     @Transactional
     public TenantCustomer save(TenantCustomer customer) {
@@ -149,14 +155,17 @@ public class TenantCustomerServiceImpl implements TenantCustomerService {
 
             // Si se generó cupón, usar datos reales y generar QR
             List<EmailAttachmentDTO> attachments = new ArrayList<>();
+            String templateToUse;
 
             if (welcomeCoupon != null) {
-                dynamicData.put("discount", welcomeCoupon.getCampaign().getDescription());
+                // Usar template con cupón
+                templateToUse = welcomeTemplateId;
+                dynamicData.put("discount", welcomeCoupon.getCampaign().getPromotionReward().getDescription());
                 dynamicData.put("couponCode", welcomeCoupon.getCode());
 
                 // Generar QR code para el cupón
                 try {
-                    String redeemUrl = "http://localhost:4200/redeem?code=" + welcomeCoupon.getQrToken();
+                    String redeemUrl = dashboardUrl + "/redeem?code=" + welcomeCoupon.getQrToken();
                     String qrBase64 = qrCodeService.generateQrCodeBase64(redeemUrl);
 
                     // Crear attachment inline para el QR
@@ -178,10 +187,9 @@ public class TenantCustomerServiceImpl implements TenantCustomerService {
                     dynamicData.put("hasQr", false);
                 }
             } else {
-                // Valores dummy por ahora
-                dynamicData.put("discount", "10");
-                dynamicData.put("couponCode", "NOCOUPON");
-                dynamicData.put("hasQr", false);
+                // Usar template sin cupón (solo bienvenida simple)
+                templateToUse = welcomeNoCouponTemplateId;
+                log.info("No hay cupón de bienvenida, usando template sin cupón para customer {}", saved.getId());
             }
 
             String landingUrl = "http://localhost:4200/landing-page?token=" +
@@ -191,13 +199,13 @@ public class TenantCustomerServiceImpl implements TenantCustomerService {
             EmailDTO emailDTO = EmailDTO.builder()
                     .to(saved.getEmail())
                     .subject("Bienvenido a " + (tenant != null ? tenant.getNombreNegocio() : "nuestro servicio"))
-                    .templateId(welcomeTemplateId)
+                    .templateId(templateToUse)
                     .dynamicData(dynamicData)
                     .attachments(attachments.isEmpty() ? null : attachments)
                     .build();
 
             log.info("Intentando enviar email de bienvenida a: {}, template: {}, tenant: {}",
-                    saved.getEmail(), welcomeTemplateId, tenant != null ? tenant.getNombreNegocio() : "null");
+                    saved.getEmail(), templateToUse, tenant != null ? tenant.getNombreNegocio() : "null");
             log.debug("EmailDTO construido - to: {}, subject: {}, templateId: {}, hasAttachments: {}",
                     emailDTO.getTo(), emailDTO.getSubject(), emailDTO.getTemplateId(),
                     emailDTO.getAttachments() != null && !emailDTO.getAttachments().isEmpty());

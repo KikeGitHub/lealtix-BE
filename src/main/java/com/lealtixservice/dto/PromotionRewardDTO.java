@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 
 /**
@@ -34,10 +35,10 @@ public class PromotionRewardDTO {
     // Para CUSTOM
     private String customConfig;
 
+    @Size(max = 500, message = "La descripción no puede tener más de 500 caracteres")
     private String description;
 
     private BigDecimal minPurchaseAmount;
 
     private Integer usageLimit;
 }
-

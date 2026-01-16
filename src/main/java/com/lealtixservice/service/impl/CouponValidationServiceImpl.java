@@ -124,23 +124,46 @@ public class CouponValidationServiceImpl implements CouponValidationService {
             return CouponValidationResponse.invalidCoupon("Cupón no disponible para redención");
         }
 
-        // 5. Obtener información del beneficio
+        // 5. Obtener información del beneficio y reward
         String benefit = getBenefitDescription(campaign);
+        PromotionReward reward = campaign.getPromotionReward();
 
-        // 6. Cupón válido
-        return CouponValidationResponse.validCoupon(
-                coupon.getCode(),
-                coupon.getStatus(),
-                coupon.getExpiresAt(),
-                campaign.getTitle(),
-                campaign.getDescription(),
-                benefit,
-                customer.getName(),
-                customer.getEmail(),
-                campaign.getId(),
-                tenant.getId(),
-                tenant.getNombreNegocio()
-        );
+        // 6. Cupón válido - incluir datos completos del reward si existe
+        if (reward != null) {
+            return CouponValidationResponse.validCoupon(
+                    coupon.getCode(),
+                    coupon.getStatus(),
+                    coupon.getExpiresAt(),
+                    campaign.getTitle(),
+                    campaign.getDescription(),
+                    benefit,
+                    customer.getName(),
+                    customer.getEmail(),
+                    campaign.getId(),
+                    tenant.getId(),
+                    tenant.getNombreNegocio(),
+                    reward.getDescription(),
+                    reward.getMinPurchaseAmount(),
+                    reward.getUsageLimit(),
+                    reward.getUsageCount(),
+                    reward.getRewardType()
+            );
+        } else {
+            // Sin reward, usar factory method sin datos de reward
+            return CouponValidationResponse.validCoupon(
+                    coupon.getCode(),
+                    coupon.getStatus(),
+                    coupon.getExpiresAt(),
+                    campaign.getTitle(),
+                    campaign.getDescription(),
+                    benefit,
+                    customer.getName(),
+                    customer.getEmail(),
+                    campaign.getId(),
+                    tenant.getId(),
+                    tenant.getNombreNegocio()
+            );
+        }
     }
 
     /**

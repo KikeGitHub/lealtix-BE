@@ -1,7 +1,9 @@
 package com.lealtixservice.service.impl;
 
+import com.lealtixservice.dto.CouponResponseDTO;
 import com.lealtixservice.entity.Campaign;
 import com.lealtixservice.entity.Coupon;
+import com.lealtixservice.entity.PromotionReward;
 import com.lealtixservice.entity.TenantCustomer;
 import com.lealtixservice.enums.CouponStatus;
 import com.lealtixservice.exception.BusinessRuleException;
@@ -18,6 +20,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -185,6 +188,53 @@ public class CouponServiceImpl implements CouponService {
     @Override
     public boolean hasActiveCouponForCampaign(Long customerId, Long campaignId) {
         return couponRepository.hasActiveCouponForCampaign(customerId, campaignId);
+    }
+
+    @Override
+    public CouponResponseDTO toDTO(Coupon coupon) {
+        if (coupon == null) {
+            return null;
+        }
+
+        Campaign campaign = coupon.getCampaign();
+        PromotionReward reward = campaign != null ? campaign.getPromotionReward() : null;
+
+        return CouponResponseDTO.builder()
+                .id(coupon.getId())
+                .code(coupon.getCode())
+                .status(coupon.getStatus())
+                .expiresAt(coupon.getExpiresAt())
+                .createdAt(coupon.getCreatedAt())
+                .redeemedAt(coupon.getRedeemedAt())
+                .qrToken(coupon.getQrToken())
+                .qrUrl(coupon.getQrUrl())
+                .redeemedBy(coupon.getRedeemedBy())
+                .redemptionMetadata(coupon.getRedemptionMetadata())
+                .expired(coupon.isExpired())
+                // Información de la campaña
+                .campaignId(campaign != null ? campaign.getId() : null)
+                .campaignTitle(campaign != null ? campaign.getTitle() : null)
+                // Información del cliente
+                .customerId(coupon.getCustomer() != null ? coupon.getCustomer().getId() : null)
+                .customerName(coupon.getCustomer() != null ? coupon.getCustomer().getName() : null)
+                // Información del reward (completa)
+                .rewardDescription(reward != null ? reward.getDescription() : null)
+                .minPurchaseAmount(reward != null ? reward.getMinPurchaseAmount() : null)
+                .usageLimit(reward != null ? reward.getUsageLimit() : null)
+                .usageCount(reward != null ? reward.getUsageCount() : null)
+                .rewardType(reward != null ? reward.getRewardType() : null)
+                .numericValue(reward != null ? reward.getNumericValue() : null)
+                .build();
+    }
+
+    @Override
+    public List<CouponResponseDTO> toDTOList(List<Coupon> coupons) {
+        if (coupons == null) {
+            return List.of();
+        }
+        return coupons.stream()
+                .map(this::toDTO)
+                .collect(Collectors.toList());
     }
 }
 

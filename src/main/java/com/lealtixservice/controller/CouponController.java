@@ -1,5 +1,6 @@
 package com.lealtixservice.controller;
 
+import com.lealtixservice.dto.CouponResponseDTO;
 import com.lealtixservice.dto.GenericResponse;
 import com.lealtixservice.entity.Coupon;
 import com.lealtixservice.exception.BusinessRuleException;
@@ -30,7 +31,8 @@ public class CouponController {
         try {
             Optional<Coupon> coupon = couponService.findByCode(code);
             if (coupon.isPresent()) {
-                return ResponseEntity.ok(new GenericResponse(200, "Cupón encontrado", coupon.get()));
+                CouponResponseDTO dto = couponService.toDTO(coupon.get());
+                return ResponseEntity.ok(new GenericResponse(200, "Cupón encontrado", dto));
             } else {
                 return ResponseEntity.ok(new GenericResponse(404, "Cupón no encontrado", null));
             }
@@ -45,7 +47,8 @@ public class CouponController {
     public ResponseEntity<GenericResponse> getByCustomerId(@PathVariable Long customerId) {
         try {
             List<Coupon> coupons = couponService.findByCustomerId(customerId);
-            return ResponseEntity.ok(new GenericResponse(200, "Cupones encontrados", coupons));
+            List<CouponResponseDTO> dtos = couponService.toDTOList(coupons);
+            return ResponseEntity.ok(new GenericResponse(200, "Cupones encontrados", dtos));
         } catch (Exception e) {
             log.error("Error obteniendo cupones del cliente: {}", customerId, e);
             return ResponseEntity.ok(new GenericResponse(500, "Error interno del servidor", null));
@@ -60,7 +63,8 @@ public class CouponController {
         try {
             String metadata = request != null ? request.getMetadata() : null;
             Coupon redeemed = couponService.redeemCoupon(code, metadata);
-            return ResponseEntity.ok(new GenericResponse(200, "Cupón canjeado exitosamente", redeemed));
+            CouponResponseDTO dto = couponService.toDTO(redeemed);
+            return ResponseEntity.ok(new GenericResponse(200, "Cupón canjeado exitosamente", dto));
         } catch (ResourceNotFoundException ex) {
             log.warn("Cupón no encontrado: {}", code);
             return ResponseEntity.ok(new GenericResponse(404, ex.getMessage(), null));

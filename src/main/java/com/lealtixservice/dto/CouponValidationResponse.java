@@ -1,11 +1,13 @@
 package com.lealtixservice.dto;
 
 import com.lealtixservice.enums.CouponStatus;
+import com.lealtixservice.enums.RewardType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
@@ -35,6 +37,13 @@ public class CouponValidationResponse {
     private String campaignDescription;
     private String benefit; // Descripción del beneficio
 
+    // Datos del reward
+    private String rewardDescription;
+    private BigDecimal minPurchaseAmount;
+    private Integer usageLimit;
+    private Integer usageCount;
+    private RewardType rewardType;
+
     // Información del cliente
     private String customerName;
     private String customerEmail;
@@ -52,6 +61,19 @@ public class CouponValidationResponse {
             String customerName, String customerEmail,
             Long campaignId, Long tenantId, String tenantName) {
 
+        return validCoupon(code, status, expiresAt, campaignTitle, campaignDescription, benefit,
+                customerName, customerEmail, campaignId, tenantId, tenantName,
+                null, null, null, null, null);
+    }
+
+    public static CouponValidationResponse validCoupon(
+            String code, CouponStatus status, LocalDateTime expiresAt,
+            String campaignTitle, String campaignDescription, String benefit,
+            String customerName, String customerEmail,
+            Long campaignId, Long tenantId, String tenantName,
+            String rewardDescription, BigDecimal minPurchaseAmount, Integer usageLimit,
+            Integer usageCount, RewardType rewardType) {
+
         return CouponValidationResponse.builder()
                 .valid(true)
                 .message("Cupón válido y listo para redimir")
@@ -64,6 +86,11 @@ public class CouponValidationResponse {
                 .campaignTitle(campaignTitle)
                 .campaignDescription(campaignDescription)
                 .benefit(benefit)
+                .rewardDescription(rewardDescription)
+                .minPurchaseAmount(minPurchaseAmount)
+                .usageLimit(usageLimit)
+                .usageCount(usageCount)
+                .rewardType(rewardType)
                 .customerName(customerName)
                 .customerEmail(customerEmail)
                 .tenantId(tenantId)

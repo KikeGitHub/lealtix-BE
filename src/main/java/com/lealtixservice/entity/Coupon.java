@@ -1,5 +1,6 @@
 package com.lealtixservice.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.lealtixservice.enums.CouponStatus;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
@@ -40,11 +41,13 @@ public class Coupon {
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "campaign_id", nullable = false)
+    @JsonIgnore
     private Campaign campaign;
 
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "customer_id", nullable = false)
+    @JsonIgnore
     private TenantCustomer customer;
 
     @NotNull
