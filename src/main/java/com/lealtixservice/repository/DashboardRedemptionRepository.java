@@ -21,8 +21,8 @@ public interface DashboardRedemptionRepository extends JpaRepository<CouponRedem
      * Retorna: [0]=totalSales, [1]=avgTicket, [2]=transactionCount
      */
     @Query(value = """
-            SELECT COALESCE(SUM(cr.purchase_amount), 0.0) AS totalSales,
-                   COALESCE(AVG(cr.purchase_amount), 0.0) AS avgTicket,
+            SELECT COALESCE(SUM(cr.final_amount), 0.0) AS totalSales,
+                   COALESCE(AVG(cr.final_amount), 0.0) AS avgTicket,
                    COUNT(cr) AS transactionCount
             FROM coupon_redemption cr
             WHERE cr.tenant_id = :tenantId
@@ -70,8 +70,8 @@ public interface DashboardRedemptionRepository extends JpaRepository<CouponRedem
                    ca.title AS campaignName,
                    COUNT(DISTINCT c.id) AS couponsIssued,
                    COUNT(cr.id) AS redemptions,
-                   COALESCE(SUM(cr.purchase_amount), 0.0) AS totalSales,
-                   COALESCE(AVG(cr.purchase_amount), 0.0) AS avgTicket,
+                   COALESCE(SUM(cr.final_amount), 0.0) AS totalSales,
+                   COALESCE(AVG(cr.final_amount), 0.0) AS avgTicket,
                    CASE WHEN COUNT(DISTINCT c.id) = 0 THEN 0.0
                         ELSE (CAST(COUNT(cr.id) AS numeric) / COUNT(DISTINCT c.id)) * 100
                    END AS redemptionRatePct
@@ -92,7 +92,7 @@ public interface DashboardRedemptionRepository extends JpaRepository<CouponRedem
     /**
      * Total de ventas generadas por cupones (simple).
      */
-    @Query("SELECT COALESCE(SUM(cr.purchaseAmount), 0) FROM CouponRedemption cr " +
+    @Query("SELECT COALESCE(SUM(cr.finalAmount), 0) FROM CouponRedemption cr " +
            "WHERE cr.tenantId = :tenantId " +
            "AND cr.redeemedAt BETWEEN :from AND :to")
     BigDecimal getTotalSalesByCoupons(
@@ -104,7 +104,7 @@ public interface DashboardRedemptionRepository extends JpaRepository<CouponRedem
     /**
      * Ticket promedio de cupones redimidos.
      */
-    @Query("SELECT COALESCE(AVG(cr.purchaseAmount), 0) FROM CouponRedemption cr " +
+    @Query("SELECT COALESCE(AVG(cr.finalAmount), 0) FROM CouponRedemption cr " +
            "WHERE cr.tenantId = :tenantId " +
            "AND cr.redeemedAt BETWEEN :from AND :to")
     BigDecimal getAvgTicketByCoupons(

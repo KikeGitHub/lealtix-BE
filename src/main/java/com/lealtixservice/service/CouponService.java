@@ -1,5 +1,6 @@
 package com.lealtixservice.service;
 
+import com.lealtixservice.dto.CouponResponseDTO;
 import com.lealtixservice.entity.Campaign;
 import com.lealtixservice.entity.Coupon;
 import com.lealtixservice.entity.TenantCustomer;
@@ -38,5 +39,15 @@ public interface CouponService {
      * Verifica si un cliente ya tiene un cupón activo para una campaña
      */
     boolean hasActiveCouponForCampaign(Long customerId, Long campaignId);
+
+    /**
+     * Convierte un Coupon a CouponResponseDTO
+     */
+    CouponResponseDTO toDTO(Coupon coupon);
+
+    /**
+     * Convierte una lista de Coupon a lista de CouponResponseDTO
+     */
+    List<CouponResponseDTO> toDTOList(List<Coupon> coupons);
 }
 
