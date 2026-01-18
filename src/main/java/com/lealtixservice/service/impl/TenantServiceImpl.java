@@ -139,6 +139,8 @@ public class TenantServiceImpl implements TenantService {
                     tenantConfig.setLinkedin(tenantDto.getLinkedin());
                     tenantConfigRepository.save(tenantConfig);
 
+                    tenant.setNombreNegocio(tenantDto.getNombreNegocio());
+                    tenant.setLogoUrl(tenantDto.getLogoUrl());
                     tenant.setDireccion(tenantDto.getDireccion());
                     tenant.setTelefono(tenantDto.getTelefono());
                     tenant.setTipoNegocio(tenantDto.getTipoNegocio());
