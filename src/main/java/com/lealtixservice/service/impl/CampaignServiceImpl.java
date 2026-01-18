@@ -89,6 +89,21 @@ public class CampaignServiceImpl implements CampaignService {
         long t4 = System.currentTimeMillis();
         log.debug("Saved campaign id={} (saveTime={}ms totalTime={}ms)", saved.getId(), (t4 - t3), (t4 - t0));
 
+        // Si el request trae configuración de reward, delegar a configureReward para validar y persistir
+        if (request.getReward() != null) {
+            log.debug("Request incluye reward - aplicando configureReward para campaignId={}", saved.getId());
+            try {
+                Long savedId = saved.getId();
+                this.configureReward(savedId, request.getReward());
+                // Recargar campaign para asegurar que promotionReward esté presente en el entity manejado
+                saved = campaignRepository.findById(savedId)
+                        .orElseThrow(() -> new ResourceNotFoundException("Campaign no encontrada id=" + savedId));
+            } catch (Exception e) {
+                log.error("Error al configurar reward durante update de campaign {}: {}", saved.getId(), e.getMessage(), e);
+                throw e; // propagar para manejo superior
+            }
+        }
+
         return CampaignMapper.toResponse(saved);
     }
 
@@ -100,6 +115,7 @@ public class CampaignServiceImpl implements CampaignService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public List<CampaignResponse> findByBusinessId(Long businessId) {
         return campaignRepository.findByBusinessId(businessId).stream()
                 .map(CampaignMapper::toResponse)

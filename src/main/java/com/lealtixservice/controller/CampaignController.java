@@ -41,7 +41,7 @@ public class CampaignController {
 
     @Operation(summary = "Actualizar campaña")
     @PutMapping("/{id}")
-    public ResponseEntity<GenericResponse> update(@PathVariable Long id, @RequestBody UpdateCampaignRequest request) {
+    public ResponseEntity<GenericResponse> update(@PathVariable Long id, @Valid @RequestBody UpdateCampaignRequest request) {
         try {
             CampaignResponse response = campaignService.update(id, request);
             return ResponseEntity.ok(new GenericResponse(200, "Campaña actualizada", response));

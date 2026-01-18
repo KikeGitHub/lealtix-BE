@@ -79,7 +79,7 @@ public class ImageServiceImpl implements ImageService {
     }
 
     @Override
-    public Long uploadImageBase64(ImageDTO imageDTO) throws IOException {
+    public String uploadImageBase64(ImageDTO imageDTO) throws IOException {
             validateImageDTO(imageDTO);
 
             AppUser user = appUserRepository.findByEmail(imageDTO.getEmail());
@@ -105,7 +105,7 @@ public class ImageServiceImpl implements ImageService {
             tenantEntity.setUIDTenant("UID-" + tenantEntity.getId());
             tenantRepository.save(tenantEntity);
 
-            return tenantEntity.getId();
+            return url;
         }
 
     @Override

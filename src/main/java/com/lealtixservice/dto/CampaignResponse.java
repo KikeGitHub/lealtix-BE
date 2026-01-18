@@ -29,5 +29,6 @@ public class CampaignResponse {
     private Boolean isAutomatic;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private PromotionRewardResponse promotionReward;
 }
 

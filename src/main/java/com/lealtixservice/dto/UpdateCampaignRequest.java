@@ -1,5 +1,6 @@
 package com.lealtixservice.dto;
 
+import jakarta.validation.Valid;
 import lombok.*;
 
 import java.time.LocalDate;
@@ -23,5 +24,8 @@ public class UpdateCampaignRequest {
     private List<String> channels;
     private List<String> segmentation;
     private Boolean isAutomatic;
-}
 
+    // Nuevo: permitir enviar configuración de reward en el mismo request de actualización
+    @Valid
+    private ConfigureRewardRequest reward;
+}

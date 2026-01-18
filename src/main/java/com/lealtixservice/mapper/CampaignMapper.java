@@ -4,6 +4,7 @@ import com.lealtixservice.dto.*;
 import com.lealtixservice.entity.Campaign;
 import com.lealtixservice.entity.CampaignResult;
 import com.lealtixservice.entity.CampaignTemplate;
+import com.lealtixservice.entity.PromotionReward;
 import com.lealtixservice.enums.CampaignStatus;
 import com.lealtixservice.enums.PromoType;
 
@@ -89,7 +90,11 @@ public class CampaignMapper {
             templateDTO = toTemplateDTO(campaign.getTemplate());
         }
         List<String> channelsList = commaSeparatedToList(campaign.getChannels());
-        return CampaignResponse.builder()
+
+        // Construir el CampaignResponse con el builder
+        // (no retornar aquí, porque necesitamos setear promotionReward después si existe)
+
+        CampaignResponse response = CampaignResponse.builder()
                 .id(campaign.getId())
                 .template(templateDTO)
                 .businessId(campaign.getBusinessId())
@@ -97,9 +102,8 @@ public class CampaignMapper {
                 .subtitle(campaign.getSubtitle())
                 .description(campaign.getDescription())
                 .imageUrl(campaign.getImageUrl())
-                // NOTA: promoType y promoValue removidos - usar PromotionReward
-                .promoType(null) // Mantener por compatibilidad con frontend
-                .promoValue(null) // Mantener por compatibilidad con frontend
+                .promoType(null)
+                .promoValue(null)
                 .startDate(campaign.getStartDate())
                 .endDate(campaign.getEndDate())
                 .status(determineStatus(campaign))
@@ -110,6 +114,11 @@ public class CampaignMapper {
                 .createdAt(campaign.getCreatedAt())
                 .updatedAt(campaign.getUpdatedAt())
                 .build();
+
+        if (campaign.getPromotionReward() != null) {
+            response.setPromotionReward(mapPromotionReward(campaign.getPromotionReward()));
+        }
+        return response;
     }
 
     public static CampaignTemplateDTO toTemplateDTO(CampaignTemplate template) {
@@ -184,5 +193,26 @@ public class CampaignMapper {
     private static List<String> commaSeparatedToList(String value) {
         if (value == null || value.isBlank()) return List.of();
         return List.of(value.split(","));
+    }
+
+    // Mapeo auxiliar para PromotionReward -> PromotionRewardResponse
+    private static PromotionRewardResponse mapPromotionReward(PromotionReward reward) {
+        if (reward == null) return null;
+        return PromotionRewardResponse.builder()
+                .id(reward.getId())
+                .campaignId(reward.getCampaign() != null ? reward.getCampaign().getId() : null)
+                .rewardType(reward.getRewardType())
+                .numericValue(reward.getNumericValue())
+                .productId(reward.getProductId())
+                .buyQuantity(reward.getBuyQuantity())
+                .freeQuantity(reward.getFreeQuantity())
+                .customConfig(reward.getCustomConfig())
+                .description(reward.getDescription())
+                .minPurchaseAmount(reward.getMinPurchaseAmount())
+                .usageLimit(reward.getUsageLimit())
+                .usageCount(reward.getUsageCount())
+                .createdAt(reward.getCreatedAt())
+                .updatedAt(reward.getUpdatedAt())
+                .build();
     }
 }
