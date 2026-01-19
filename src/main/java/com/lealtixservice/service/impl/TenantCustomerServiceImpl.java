@@ -60,6 +60,9 @@ public class TenantCustomerServiceImpl implements TenantCustomerService {
     @Value("${lealtix.dashboard.url}")
     private String dashboardUrl;
 
+    @Value("${invitation.base-url}")
+    private String invitationBaseUrl;
+
     @Override
     @Transactional
     public TenantCustomer save(TenantCustomer customer) {
@@ -192,8 +195,16 @@ public class TenantCustomerServiceImpl implements TenantCustomerService {
                 log.info("No hay cupón de bienvenida, usando template sin cupón para customer {}", saved.getId());
             }
 
-            String landingUrl = "http://localhost:4200/landing-page?token=" +
-                    (tenant != null && tenant.getSlug() != null ? tenant.getSlug() : "cafecito-lindo-y-querido-14");
+            // Construir landing URL basada en la propiedad invitation.base-url del environment
+            String slug = tenant.getSlug();
+            String baseUrl;
+            if (invitationBaseUrl != null && !invitationBaseUrl.trim().isEmpty()) {
+                baseUrl = invitationBaseUrl.replaceAll("/+$", "");
+            } else {
+                // Si no hay base URL definida (por ejemplo en dev local), usar el comportamiento anterior
+                baseUrl = "https://lealtix.com.mx";
+            }
+            String landingUrl = baseUrl + "/landing-page/" + slug;
             dynamicData.put("landingUrl", landingUrl);
 
             EmailDTO emailDTO = EmailDTO.builder()
