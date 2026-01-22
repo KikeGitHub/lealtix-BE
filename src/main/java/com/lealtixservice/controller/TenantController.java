@@ -7,6 +7,7 @@ import com.lealtixservice.service.TenantService;
 import com.lealtixservice.util.TenantUserMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +17,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/tenant")
 @Tag(name = "Tenant Controller", description = "Operaciones CRUD para Tenant")
@@ -32,7 +34,13 @@ public class TenantController {
     @Operation(summary = "Crear un nuevo Tenant", description = "Crea un nuevo registro de Tenant.")
     @PostMapping
     public ResponseEntity<TenantDTO> create(@RequestBody TenantDTO dto) {
-        Tenant saved = tenantService.create(dto);
+        Tenant saved;
+        try {
+            saved = tenantService.create(dto);
+        }catch (Exception e){
+            log.error("Error creating tenant: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
         return ResponseEntity.ok(TenantUserMapper.toTenantDTO(saved));
     }
 

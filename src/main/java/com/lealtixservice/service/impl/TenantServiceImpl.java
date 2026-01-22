@@ -120,6 +120,10 @@ public class TenantServiceImpl implements TenantService {
                         tenant.setTipoNegocio("Cafeteria");
                     }
 
+                    // Important: persistir el tenant primero si es nuevo para que tenga un ID
+                    if (tenant.getId() == null) {
+                        tenant = tenantRepository.save(tenant);
+                    }
 
                     TenantConfig tenantConfig = tenantConfigRepository.findByTenantId(tenant.getId());
                     if (tenantConfig == null) {
