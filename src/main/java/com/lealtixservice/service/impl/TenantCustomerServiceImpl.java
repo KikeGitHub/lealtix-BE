@@ -165,6 +165,7 @@ public class TenantCustomerServiceImpl implements TenantCustomerService {
                 templateToUse = welcomeTemplateId;
                 dynamicData.put("discount", welcomeCoupon.getCampaign().getPromotionReward().getDescription());
                 dynamicData.put("couponCode", welcomeCoupon.getCode());
+                dynamicData.put("promoImageUrl",  welcomeCoupon.getCampaign().getImageUrl());
 
                 // Generar QR code para el cupón
                 try {
