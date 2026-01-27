@@ -143,8 +143,15 @@ public class TenantServiceImpl implements TenantService {
                     tenantConfig.setLinkedin(tenantDto.getLinkedin());
                     tenantConfigRepository.save(tenantConfig);
 
+                    // Actualiza campos del tenant con la información del DTO
                     tenant.setNombreNegocio(tenantDto.getNombreNegocio());
-                    tenant.setLogoUrl(tenantDto.getLogoUrl());
+                    // Decodifica logo si viene en base64, si no, lo deja tal cual
+                    if (tenantDto.getLogoUrl() != null && !tenantDto.getLogoUrl().isBlank()) {
+                        String logoUrlDecoded = StringUtils.decryptBase64(tenantDto.getLogoUrl());
+                        tenant.setLogoUrl(logoUrlDecoded);
+                    } else {
+                        tenant.setLogoUrl("");
+                    }
                     tenant.setDireccion(tenantDto.getDireccion());
                     tenant.setTelefono(tenantDto.getTelefono());
                     tenant.setTipoNegocio(tenantDto.getTipoNegocio());
@@ -152,6 +159,26 @@ public class TenantServiceImpl implements TenantService {
                     tenant.setSchedules(tenantDto.getSchedules());
                     tenant.setTipoNegocio("Cafeteria");
                     tenant.setSlogan(tenantDto.getSlogan());
+
+                    // Garantizar que slug y UIDTenant estén creados usando el ID persistido
+                    Long tenantId = tenant.getId();
+                    if (tenantId != null) {
+                        // Determinar nombre a usar para el slug
+                        String nombreParaSlug = (tenantDto.getNombreNegocio() != null && !tenantDto.getNombreNegocio().isBlank())
+                                ? tenantDto.getNombreNegocio()
+                                : tenant.getNombreNegocio();
+                        if (tenant.getSlug() == null || tenant.getSlug().isBlank()) {
+                            String generatedSlug = StringUtils.createSlug(
+                                    nombreParaSlug != null ? nombreParaSlug : "tenant", tenantId);
+                            tenant.setSlug(generatedSlug);
+                        }
+
+                        if (tenantDto.getUIDTenant() != null && !tenantDto.getUIDTenant().isBlank()) {
+                            tenant.setUIDTenant(tenantDto.getUIDTenant());
+                        } else if (tenant.getUIDTenant() == null || tenant.getUIDTenant().isBlank()) {
+                            tenant.setUIDTenant("UID-" + tenantId);
+                        }
+                    }
 
                     return tenantRepository.save(tenant);
                 }
