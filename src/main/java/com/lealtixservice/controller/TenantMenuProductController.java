@@ -1,14 +1,16 @@
 package com.lealtixservice.controller;
 
+import com.lealtixservice.dto.BulkProductRequest;
+import com.lealtixservice.dto.BulkProductResponse;
 import com.lealtixservice.dto.GenericResponse;
 import com.lealtixservice.dto.GenericResponseProd;
-import com.lealtixservice.dto.TenantMenuCategoryDTO;
 import com.lealtixservice.dto.TenantMenuProductDTO;
 import com.lealtixservice.entity.TenantMenuProduct;
 import com.lealtixservice.service.TenantMenuProductService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -59,7 +61,44 @@ public class TenantMenuProductController {
                 return ResponseEntity.ok(new GenericResponse(400, "No se pudo crear la Producto", null));
             }
         }catch (Exception e){
-            return ResponseEntity.ok(new GenericResponse(500, "Error interno del servidor", null));
+            return ResponseEntity.ok(new GenericResponse(500, "Error interno del servidor: " + e.getMessage(), null));
+        }
+    }
+
+    @Operation(summary = "Crear múltiples productos de forma masiva",
+               description = "Permite crear varios productos en una sola operación. " +
+                           "Utiliza búsqueda normalizada de categorías (case-insensitive, tolerante a plurales/acentos). " +
+                           "Retorna un resumen con productos creados exitosamente y errores si los hay.")
+    @PostMapping("/bulk")
+    public ResponseEntity<GenericResponse> createBulk(@RequestBody BulkProductRequest bulkRequest) {
+        try {
+            BulkProductResponse response = productService.createBulk(bulkRequest);
+
+            if (response.getSuccessCount() > 0) {
+                String message = String.format(
+                    "Proceso completado: %d productos creados exitosamente de %d solicitados",
+                    response.getSuccessCount(),
+                    response.getTotalProcessed()
+                );
+
+                // Si hubo errores parciales, código 207 (Multi-Status), sino 201 (Created)
+                int statusCode = response.getFailureCount() > 0 ? 207 : 201;
+
+                return ResponseEntity.status(HttpStatus.OK)
+                        .body(new GenericResponse(statusCode, message, response));
+            } else {
+                return ResponseEntity.ok(
+                    new GenericResponse(400, "No se pudo crear ningún producto", response)
+                );
+            }
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.ok(
+                new GenericResponse(400, "Solicitud inválida: " + e.getMessage(), null)
+            );
+        } catch (Exception e) {
+            return ResponseEntity.ok(
+                new GenericResponse(500, "Error interno del servidor: " + e.getMessage(), null)
+            );
         }
     }
 

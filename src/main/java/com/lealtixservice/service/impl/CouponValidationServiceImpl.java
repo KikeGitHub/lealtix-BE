@@ -145,6 +145,7 @@ public class CouponValidationServiceImpl implements CouponValidationService {
                     reward.getDescription(),
                     reward.getMinPurchaseAmount(),
                     reward.getUsageLimit(),
+                    reward.getNumericValue(),
                     reward.getUsageCount(),
                     reward.getRewardType()
             );

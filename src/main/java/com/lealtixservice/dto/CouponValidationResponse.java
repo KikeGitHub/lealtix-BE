@@ -43,6 +43,7 @@ public class CouponValidationResponse {
     private Integer usageLimit;
     private Integer usageCount;
     private RewardType rewardType;
+    private BigDecimal numericValue;
 
     // Información del cliente
     private String customerName;
@@ -63,7 +64,7 @@ public class CouponValidationResponse {
 
         return validCoupon(code, status, expiresAt, campaignTitle, campaignDescription, benefit,
                 customerName, customerEmail, campaignId, tenantId, tenantName,
-                null, null, null, null, null);
+                null, null, null, null, null,null);
     }
 
     public static CouponValidationResponse validCoupon(
@@ -71,7 +72,7 @@ public class CouponValidationResponse {
             String campaignTitle, String campaignDescription, String benefit,
             String customerName, String customerEmail,
             Long campaignId, Long tenantId, String tenantName,
-            String rewardDescription, BigDecimal minPurchaseAmount, Integer usageLimit,
+            String rewardDescription, BigDecimal minPurchaseAmount, Integer usageLimit, BigDecimal numericValue,
             Integer usageCount, RewardType rewardType) {
 
         return CouponValidationResponse.builder()
@@ -89,6 +90,7 @@ public class CouponValidationResponse {
                 .rewardDescription(rewardDescription)
                 .minPurchaseAmount(minPurchaseAmount)
                 .usageLimit(usageLimit)
+                .numericValue(numericValue)
                 .usageCount(usageCount)
                 .rewardType(rewardType)
                 .customerName(customerName)

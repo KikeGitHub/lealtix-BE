@@ -3,6 +3,7 @@ package com.lealtixservice.service.impl;
 import com.lealtixservice.dto.*;
 import com.lealtixservice.entity.Campaign;
 import com.lealtixservice.entity.CampaignTemplate;
+import com.lealtixservice.entity.Coupon;
 import com.lealtixservice.entity.PromotionReward;
 import com.lealtixservice.enums.CampaignStatus;
 import com.lealtixservice.enums.RewardType;
@@ -11,6 +12,7 @@ import com.lealtixservice.exception.ResourceNotFoundException;
 import com.lealtixservice.mapper.CampaignMapper;
 import com.lealtixservice.repository.CampaignRepository;
 import com.lealtixservice.repository.CampaignTemplateRepository;
+import com.lealtixservice.repository.CouponRepository;
 import com.lealtixservice.repository.PromotionRewardRepository;
 import com.lealtixservice.service.CampaignService;
 import lombok.RequiredArgsConstructor;
@@ -37,6 +39,7 @@ public class CampaignServiceImpl implements CampaignService {
     private final CampaignRepository campaignRepository;
     private final CampaignTemplateRepository templateRepository;
     private final PromotionRewardRepository promotionRewardRepository;
+    private final CouponRepository couponRepository;
 
     @Override
     @Transactional
@@ -56,12 +59,10 @@ public class CampaignServiceImpl implements CampaignService {
     @Transactional
     public CampaignResponse update(Long id, UpdateCampaignRequest request) {
         long t0 = System.currentTimeMillis();
-        log.debug("update() start - id={} request={}", id, request);
 
         Campaign campaign = campaignRepository.findByIdWithTemplate(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Campaign no encontrada id=" + id));
         long t1 = System.currentTimeMillis();
-        log.debug("Fetched campaign id={} (fetchTime={}ms)", id, (t1 - t0));
 
         // Loguear campos clave para ver qué se ha cargado.
         try {
@@ -79,18 +80,30 @@ public class CampaignServiceImpl implements CampaignService {
             validateDates(start, end);
         }
         long t2 = System.currentTimeMillis();
-        log.debug("Validation done (time since fetch={}ms)", (t2 - t1));
 
         CampaignMapper.updateEntityFromRequest(request, campaign);
         long t3 = System.currentTimeMillis();
-        log.debug("Mapping done (mappingTime={}ms)", (t3 - t2));
 
         Campaign saved = campaignRepository.save(campaign);
         long t4 = System.currentTimeMillis();
-        log.debug("Saved campaign id={} (saveTime={}ms totalTime={}ms)", saved.getId(), (t4 - t3), (t4 - t0));
 
-        // Si el request trae configuración de reward, delegar a configureReward para validar y persistir
-        if (request.getReward() != null) {
+        // REGLA: Si promoType = NONE, eliminar reward y coupons asociados
+        if (request.getPromoType() != null && "NONE".equals(request.getPromoType())) {
+            log.info("promoType = NONE detectado para campaña {}. Eliminando reward y coupons asociados.", saved.getId());
+
+            // 2. Eliminar el PromotionReward si existe
+            Long savedCampaignId = saved.getId();
+            promotionRewardRepository.findByCampaignId(savedCampaignId).ifPresent(reward -> {
+                log.info("Eliminando PromotionReward {} de campaña {}", reward.getId(), savedCampaignId);
+                promotionRewardRepository.delete(reward);
+            });
+            saved.setPromotionReward(null); // limpiar referencia en entity
+            saved = campaignRepository.save(campaign);
+
+            log.info("Reward y coupons eliminados para campaña {}. Status actual: {}", saved.getId(), saved.getStatus());
+        }
+        // Si el request trae configuración de reward (y NO es NONE), delegar a configureReward para validar y persistir
+        else if (request.getReward() != null) {
             log.debug("Request incluye reward - aplicando configureReward para campaignId={}", saved.getId());
             try {
                 Long savedId = saved.getId();
@@ -713,12 +726,25 @@ public class CampaignServiceImpl implements CampaignService {
     }
 
     /**
-     * Reglas centralizadas de validación de campaña.
-     * Retorna lista de mensajes con lo que falta para que la campaña esté completa.
-     * Lista vacía = campaña completa y lista para activar.
+     * Valida la completitud de una campaña según su tipo.
+     *
+     * REGLAS DE VALIDACIÓN:
+     * 1. Campaña MANUAL (template = null):
+     *    - No requiere: template, description, reward
+     *    - Requiere: título, fechas, canales
+     *
+     * 2. Campaña de BIENVENIDA (template.name = "Bienvenida"):
+     *    - Requiere: reward obligatorio
+     *    - Si no tiene reward → cambiar status a DRAFT
+     *
+     * 3. Campaña AUTOMÁTICA (isAutomatic = true):
+     *    - Requiere: reward, call to action, imagen
+     *
+     * 4. Otras campañas con TEMPLATE:
+     *    - Requiere: template, título, description, fechas, canales
      *
      * @param campaign Campaña a validar
-     * @return Lista de mensajes de configuración faltante
+     * @return Lista de mensajes con errores de validación (lista vacía = válida)
      */
     private List<String> validateCampaignCompleteness(Campaign campaign) {
         List<String> errors = new ArrayList<>();
@@ -728,73 +754,199 @@ public class CampaignServiceImpl implements CampaignService {
             return errors;
         }
 
-        // 1. Validar Template
-        if (campaign.getTemplate() == null) {
-            errors.add("Template no configurado");
+        boolean isManualCampaign = campaign.getTemplate() == null;
+        boolean isWelcomeCampaign = isWelcomeCampaignType(campaign);
+        boolean isAutomaticCampaign = Boolean.TRUE.equals(campaign.getIsAutomatic());
+
+        log.debug("Validando campaña {} - Manual: {}, Bienvenida: {}, Automática: {}",
+                campaign.getId(), isManualCampaign, isWelcomeCampaign, isAutomaticCampaign);
+
+        // Si es campaña manual, validaciones mínimas
+        if (isManualCampaign) {
+            validateManualCampaign(campaign, errors);
         } else {
-            if (campaign.getTemplate().getCategory() == null || campaign.getTemplate().getCategory().trim().isEmpty()) {
-                errors.add("Template: categoría no definida");
-            }
-            if (campaign.getTemplate().getName() == null || campaign.getTemplate().getName().trim().isEmpty()) {
-                errors.add("Template: nombre no definido");
-            }
+            // Campaña con template requiere validaciones completas
+            validateTemplateCampaign(campaign, errors, isWelcomeCampaign, isAutomaticCampaign);
         }
 
-        // 2. Validar contenido básico
-        if (campaign.getTitle() == null || campaign.getTitle().trim().length() < 3) {
+        // Validaciones transversales (aplican a todas las campañas)
+        validateCampaignDates(campaign, errors);
+
+        log.debug("Validación de campaña {}: {} errores encontrados", campaign.getId(), errors.size());
+        return errors;
+    }
+
+    /**
+     * Valida una campaña MANUAL (sin template).
+     * Requisitos mínimos: título, fechas y canales.
+     */
+    private void validateManualCampaign(Campaign campaign, List<String> errors) {
+        log.debug("Validando campaña manual {}", campaign.getId());
+
+        // Validar título
+        if (!isValidString(campaign.getTitle(), 3)) {
             errors.add("Título insuficiente (mínimo 3 caracteres)");
         }
-        if (campaign.getDescription() == null || campaign.getDescription().trim().length() < 10) {
+
+        // Validar canales
+        if (!isValidString(campaign.getChannels(), 1)) {
+            errors.add("Canales no configurados");
+        }
+    }
+
+    /**
+     * Valida una campaña con TEMPLATE.
+     * Requisitos: template, título, descripción, canales.
+     * Requisito especial para BIENVENIDA: reward obligatorio.
+     */
+    private void validateTemplateCampaign(Campaign campaign, List<String> errors,
+                                          boolean isWelcomeCampaign, boolean isAutomaticCampaign) {
+        log.debug("Validando campaña con template {}", campaign.getId());
+
+        // Validar estructura del template
+        validateTemplateStructure(campaign, errors);
+
+        // Validar título
+        if (!isValidString(campaign.getTitle(), 3)) {
+            errors.add("Título insuficiente (mínimo 3 caracteres)");
+        }
+
+        // Validar descripción (requerida para campañas con template)
+        if (!isValidString(campaign.getDescription(), 10)) {
             errors.add("Descripción insuficiente (mínimo 10 caracteres)");
         }
 
-        // 3. Validar fechas
-        if (campaign.getStartDate() == null) {
-            errors.add("Fecha de inicio no configurada");
-        }
-
-        // EndDate puede ser null si la campaña no expira, pero validamos lógica si existe
-        if (campaign.getEndDate() != null) {
-            if (campaign.getStartDate() != null && campaign.getEndDate().isBefore(campaign.getStartDate())) {
-                errors.add("Fecha de fin debe ser posterior a fecha de inicio");
-            }
-            if (campaign.getEndDate().isBefore(LocalDate.now())) {
-                errors.add("Fecha de fin ya expiró");
-            }
-        }
-
-        // 4. Validar canales/segmentación
-        if (campaign.getChannels() == null || campaign.getChannels().trim().isEmpty()) {
+        // Validar canales
+        if (!isValidString(campaign.getChannels(), 1)) {
             errors.add("Canales no configurados");
         }
 
-        // 5. Validar Reward (crítico para activación)
-        // Todas las campañas DRAFT o automáticas requieren reward antes de activarse
-        boolean requiresReward = Boolean.TRUE.equals(campaign.getIsAutomatic())
-                || campaign.getStatus() == CampaignStatus.DRAFT;
+        // REGLA ESPECIAL: Campaña de BIENVENIDA REQUIERE reward
+        if (isWelcomeCampaign) {
+            validateWelcomeCampaignReward(campaign, errors);
+        }
 
-        if (requiresReward) {
-            promotionRewardRepository.findByCampaignId(campaign.getId()).ifPresentOrElse(reward -> {
+        // Validar reglas de campañas automáticas
+        if (isAutomaticCampaign) {
+            validateAutomaticCampaign(campaign, errors);
+        }
+    }
+
+    /**
+     * Valida que el template esté correctamente configurado.
+     */
+    private void validateTemplateStructure(Campaign campaign, List<String> errors) {
+        CampaignTemplate template = campaign.getTemplate();
+
+        if (template == null) {
+            errors.add("Template no configurado");
+            return;
+        }
+
+        if (!isValidString(template.getCategory(), 1)) {
+            errors.add("Template: categoría no definida");
+        }
+
+        if (!isValidString(template.getName(), 1)) {
+            errors.add("Template: nombre no definido");
+        }
+    }
+
+    /**
+     * Valida que una campaña de BIENVENIDA tenga reward configurado.
+     * IMPORTANTE: Si no tiene reward, cambia el status a DRAFT.
+     */
+    private void validateWelcomeCampaignReward(Campaign campaign, List<String> errors) {
+        log.debug("Validando reward para campaña de bienvenida {}", campaign.getId());
+
+        boolean hasReward = promotionRewardRepository.findByCampaignId(campaign.getId()).isPresent();
+
+        if (!hasReward) {
+            errors.add("Reward obligatorio para campaña de bienvenida");
+
+            // REGLA: Si no tiene reward, cambiar status a DRAFT
+            if (campaign.getStatus() != CampaignStatus.DRAFT) {
+                log.warn("Campaña de bienvenida {} sin reward. Cambiando status de {} a DRAFT",
+                        campaign.getId(), campaign.getStatus());
+                campaign.setStatus(CampaignStatus.DRAFT);
+                campaignRepository.save(campaign);
+            }
+        } else {
+            // Validar que el reward sea válido
+            promotionRewardRepository.findByCampaignId(campaign.getId()).ifPresent(reward -> {
                 try {
-                    // Reutilizar validación de completitud del reward
                     validateRewardCompleteness(reward);
                 } catch (BusinessRuleException bre) {
                     errors.add("Reward inválido: " + bre.getMessage());
                 }
-            }, () -> errors.add("Reward no configurado"));
+            });
+        }
+    }
+
+    /**
+     * Valida requisitos específicos de campañas automáticas.
+     */
+    private void validateAutomaticCampaign(Campaign campaign, List<String> errors) {
+        log.debug("Validando requisitos de campaña automática {}", campaign.getId());
+
+        if (!isValidString(campaign.getCallToAction(), 1)) {
+            errors.add("Call to Action requerido para campañas automáticas");
         }
 
-        // 6. Validar reglas específicas para campañas automáticas
-        if (Boolean.TRUE.equals(campaign.getIsAutomatic())) {
-            if (campaign.getCallToAction() == null || campaign.getCallToAction().trim().isEmpty()) {
-                errors.add("Call to Action requerido para campañas automáticas");
-            }
-            if (campaign.getImageUrl() == null || campaign.getImageUrl().trim().isEmpty()) {
-                errors.add("Imagen requerida para campañas automáticas");
-            }
+        if (!isValidString(campaign.getImageUrl(), 1)) {
+            errors.add("Imagen requerida para campañas automáticas");
+        }
+    }
+
+    /**
+     * Valida que las fechas de la campaña sean coherentes.
+     * Requisitos: fecha de inicio debe existir, fecha de fin debe ser posterior.
+     */
+    private void validateCampaignDates(Campaign campaign, List<String> errors) {
+        LocalDate startDate = campaign.getStartDate();
+        LocalDate endDate = campaign.getEndDate();
+
+        // Validar fecha de inicio
+        if (startDate == null) {
+            errors.add("Fecha de inicio no configurada");
+            return;
         }
 
-        log.debug("Validación de campaña {}: {} errores encontrados", campaign.getId(), errors.size());
-        return errors;
+        // Validar fecha de fin si existe
+        if (endDate != null) {
+            if (endDate.isBefore(startDate)) {
+                errors.add("Fecha de fin debe ser posterior a fecha de inicio");
+            }
+
+            if (endDate.isBefore(LocalDate.now())) {
+                errors.add("Fecha de fin ya expiró");
+            }
+        }
+    }
+
+    /**
+     * Verifica si una cadena es válida (no null, no vacía, longitud mínima).
+     *
+     * @param value Valor a validar
+     * @param minLength Longitud mínima requerida
+     * @return true si es válida, false en caso contrario
+     */
+    private boolean isValidString(String value, int minLength) {
+        return value != null && value.trim().length() >= minLength;
+    }
+
+    /**
+     * Verifica si una campaña es de tipo BIENVENIDA.
+     *
+     * @param campaign Campaña a verificar
+     * @return true si es de bienvenida, false en caso contrario
+     */
+    private boolean isWelcomeCampaignType(Campaign campaign) {
+        if (campaign.getTemplate() == null) {
+            return false;
+        }
+
+        String templateName = campaign.getTemplate().getName();
+        return templateName != null && "Bienvenida".equals(templateName.trim());
     }
 }

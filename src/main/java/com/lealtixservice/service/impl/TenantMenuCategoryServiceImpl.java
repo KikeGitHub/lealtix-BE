@@ -9,7 +9,9 @@ import com.lealtixservice.entity.TenantMenuCategory;
 import com.lealtixservice.entity.TenantMenuProduct;
 import com.lealtixservice.repository.TenantMenuCategoryRepository;
 import com.lealtixservice.repository.TenantMenuProductRepository;
+import com.lealtixservice.repository.TenantRepository;
 import com.lealtixservice.service.TenantMenuCategoryService;
+import com.lealtixservice.util.TextNormalizer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,6 +34,9 @@ public class TenantMenuCategoryServiceImpl implements TenantMenuCategoryService 
 
     @Autowired
     private TenantMenuProductRepository productRepository;
+
+    @Autowired
+    private TenantRepository tenantRepository;
 
     @Override
     public TenantMenuCategory save(TenantMenuCategory category) {
@@ -196,5 +201,56 @@ public class TenantMenuCategoryServiceImpl implements TenantMenuCategoryService 
 
         // Guardar todos los cambios
         categoryRepository.saveAll(categories);
+    }
+
+    @Override
+    @Transactional
+    public TenantMenuCategory findOrCreateByNameNormalized(Long tenantId, String categoryName) {
+        if (categoryName == null || categoryName.trim().isEmpty()) {
+            throw new IllegalArgumentException("El nombre de categoría no puede estar vacío");
+        }
+
+        if (tenantId == null) {
+            throw new IllegalArgumentException("El tenantId no puede ser nulo");
+        }
+
+        String normalizedInput = TextNormalizer.normalize(categoryName);
+
+        // Primero intentar búsqueda exacta case-insensitive
+        Optional<TenantMenuCategory> exactMatch = categoryRepository
+                .findByTenantIdAndNombreIgnoreCase(tenantId, categoryName.trim());
+
+        if (exactMatch.isPresent()) {
+            return exactMatch.get();
+        }
+
+        // Si no hay coincidencia exacta, buscar por normalización en todas las categorías del tenant
+        List<TenantMenuCategory> allCategories = categoryRepository.findByTenantId(tenantId);
+
+        Optional<TenantMenuCategory> normalizedMatch = allCategories.stream()
+                .filter(cat -> TextNormalizer.normalize(cat.getNombre()).equals(normalizedInput))
+                .findFirst();
+
+        if (normalizedMatch.isPresent()) {
+            return normalizedMatch.get();
+        }
+
+        // Si no existe, crear nueva categoría
+        Tenant tenant = tenantRepository.findById(tenantId)
+                .orElseThrow(() -> new IllegalArgumentException("No se encontró el tenant con ID: " + tenantId));
+
+        Integer maxDisplayOrder = categoryRepository.findMaxDisplayOrderByTenantId(tenantId);
+        Integer newDisplayOrder = (maxDisplayOrder != null ? maxDisplayOrder : 0) + 1;
+
+        TenantMenuCategory newCategory = TenantMenuCategory.builder()
+                .tenant(tenant)
+                .nombre(categoryName.trim())
+                .isActive(true)
+                .displayOrder(newDisplayOrder)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+
+        return categoryRepository.save(newCategory);
     }
 }

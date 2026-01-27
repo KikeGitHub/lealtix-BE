@@ -21,5 +21,15 @@ public interface TenantMenuCategoryService {
     List<CategoryDTO> getCategoriesByTenantId(Long tenantId);
 
     void reorderCategories(Long tenantId, List<ReorderCategoryRequest> reorderRequests);
+
+    /**
+     * Busca una categoría por nombre (con normalización case-insensitive y tolerante a variaciones)
+     * o la crea si no existe.
+     *
+     * @param tenantId ID del tenant
+     * @param categoryName nombre de la categoría
+     * @return categoría encontrada o creada
+     */
+    TenantMenuCategory findOrCreateByNameNormalized(Long tenantId, String categoryName);
 }
 
