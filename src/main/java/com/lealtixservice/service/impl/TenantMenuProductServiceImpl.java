@@ -9,7 +9,9 @@ import com.lealtixservice.entity.ProductRecipe;
 import com.lealtixservice.entity.Tenant;
 import com.lealtixservice.entity.TenantMenuCategory;
 import com.lealtixservice.entity.TenantMenuProduct;
+import com.lealtixservice.repository.ClientOrderItemRepository;
 import com.lealtixservice.repository.ProductAdditionalRepository;
+import com.lealtixservice.repository.ProductCrossSellingRepository;
 import com.lealtixservice.repository.ProductRecipeRepository;
 import com.lealtixservice.repository.TenantMenuProductRepository;
 import com.lealtixservice.repository.TenantRepository;
@@ -46,6 +48,12 @@ public class TenantMenuProductServiceImpl implements TenantMenuProductService {
     @Autowired
     private ProductAdditionalRepository additionalRepository;
 
+    @Autowired
+    private ProductCrossSellingRepository crossSellingRepository;
+
+    @Autowired
+    private ClientOrderItemRepository clientOrderItemRepository;
+
     @Override
     public TenantMenuProduct save(TenantMenuProduct product) {
         return productRepository.save(product);
@@ -62,7 +70,20 @@ public class TenantMenuProductServiceImpl implements TenantMenuProductService {
     }
 
     @Override
+    @Transactional
     public void deleteById(Long id) {
+        if (id == null) {
+            return;
+        }
+
+        if (!clientOrderItemRepository.findByProductId(id).isEmpty()) {
+            throw new IllegalStateException("No se puede eliminar el producto: tiene pedidos asociados.");
+        }
+
+        recipeRepository.deleteByDishId(id);
+        additionalRepository.deleteByDishId(id);
+        crossSellingRepository.deleteByProduct_Id(id);
+        crossSellingRepository.deleteBySuggestedProduct_Id(id);
         productRepository.deleteById(id);
     }
 
