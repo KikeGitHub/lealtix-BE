@@ -161,6 +161,12 @@ public class TenantMenuProductServiceImpl implements TenantMenuProductService {
             productEntity.setActive(dto.getIsActive());
         }
 
+        // Auto-disponibilidad: respetar el valor enviado; si no llega, conservar el actual
+        // (nulos existentes por updates previos se tratan como activado en el sync).
+        if (dto.getAutoAvailability() != null) {
+            productEntity.setAutoAvailability(dto.getAutoAvailability());
+        }
+
         syncCategories(productEntity, dto);
 
         return productEntity;
@@ -227,6 +233,7 @@ public class TenantMenuProductServiceImpl implements TenantMenuProductService {
             dto.setStock(stock);
             dto.setStockMinimo(entity.getStockMinimo() != null ? entity.getStockMinimo() : 0.0);
             dto.setUnidad(entity.getUnidad() != null ? entity.getUnidad() : "pieza");
+            dto.setAutoAvailability(entity.getAutoAvailability());
 
             // Todas las categorías del producto (principal + extras) para la UI
             List<Long> categoryIds = new ArrayList<>();

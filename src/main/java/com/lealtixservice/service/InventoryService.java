@@ -1,6 +1,7 @@
 package com.lealtixservice.service;
 
 import com.lealtixservice.dto.GenericResponse;
+import com.lealtixservice.entity.TenantMenuProduct;
 
 import java.util.List;
 import java.util.Map;
@@ -115,4 +116,20 @@ public interface InventoryService {
      * Verifica si hay stock suficiente de un producto (dinámico si es platillo con receta).
      */
     boolean hasStock(Long productId, Double cantidad);
+
+    /**
+     * Indica si el producto puede prepararse/venderse al menos 1 unidad hoy
+     * (platillos: mínimo de floor(stockInsumo/cantidadReceta) de sus insumos;
+     * productos sin receta: su stock directo). No depende de isActive.
+     */
+    boolean isProductAvailable(TenantMenuProduct product);
+
+    /**
+     * Recalcula la disponibilidad de todos los productos del tenant y sincroniza
+     * su isActive automáticamente (solo productos con autoAvailability=true):
+     * se desactivan si no pueden prepararse y se reactivan al abastecer.
+     *
+     * @return número de productos cuyo isActive cambió.
+     */
+    int syncProductAvailabilityByTenant(Long tenantId);
 }

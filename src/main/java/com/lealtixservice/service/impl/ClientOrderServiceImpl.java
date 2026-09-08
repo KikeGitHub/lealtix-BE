@@ -93,6 +93,9 @@ public class ClientOrderServiceImpl implements ClientOrderService {
         for (CreateClientOrderRequest.OrderItemRequest itemRequest : request.getItems()) {
             TenantMenuProduct prod = tenantMenuProductRepository.findById(itemRequest.getProductId()).orElse(null);
             if (prod == null) continue;
+            if (!prod.isActive()) {
+                throw new IllegalArgumentException("El producto '" + prod.getNombre() + "' no está disponible actualmente");
+            }
             double qty = itemRequest.getCantidad() != null ? itemRequest.getCantidad().doubleValue() : 1.0;
             if (!inventoryService.hasStock(itemRequest.getProductId(), qty)) {
                 throw new IllegalArgumentException("El producto '" + prod.getNombre() + "' está agotado o no hay stock suficiente");

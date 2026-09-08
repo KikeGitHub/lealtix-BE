@@ -28,6 +28,9 @@ public class TenantMenuProductDTO {
     private String imageUrl;
     private List<CrossSellingDTO> crossSellingProducts;
 
+    /** true = isActive gestionado automáticamente según stock de insumos */
+    private Boolean autoAvailability;
+
     /** Ingredientes de la receta (base / modificables) para mostrar opciones */
     private List<Map<String, Object>> recipes;
 

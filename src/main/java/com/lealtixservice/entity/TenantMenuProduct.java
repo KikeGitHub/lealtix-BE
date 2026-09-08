@@ -64,6 +64,14 @@ public class TenantMenuProduct {
     @Builder.Default
     private boolean isActive = true;
 
+    /**
+     * true = el isActive se gestiona automáticamente según el stock de insumos
+     * (el producto se desactiva si no puede prepararse y se reactiva al abastecer).
+     * null/false = el administrador controla isActive manualmente.
+     */
+    @Builder.Default
+    private Boolean autoAvailability = Boolean.TRUE;
+
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
