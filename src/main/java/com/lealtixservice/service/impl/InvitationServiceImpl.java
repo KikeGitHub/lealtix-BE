@@ -51,6 +51,7 @@ public class InvitationServiceImpl implements InvitationService {
 
         // Limpia invitaciones previas del email (evita duplicados/conflictos de email único)
         invitationRepository.deleteByEmail(dto.getEmail());
+        invitationRepository.flush(); // ejecuta el DELETE antes del INSERT siguiente
         Invitation invitation = new Invitation();
         invitation.setEmail(dto.getEmail());
         invitation.setTokenHash(tokenHash);
