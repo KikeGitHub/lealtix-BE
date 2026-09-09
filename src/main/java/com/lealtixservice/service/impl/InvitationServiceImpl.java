@@ -49,8 +49,9 @@ public class InvitationServiceImpl implements InvitationService {
         Instant now = Instant.now();
         Instant expiresAt = now.plus(Duration.ofHours(expiryHours));
 
-        // Reutiliza la invitación del email si ya existe (evita violar el email único)
-        Invitation invitation = invitationRepository.findByEmail(dto.getEmail()).orElseGet(Invitation::new);
+        // Limpia invitaciones previas del email (evita duplicados/conflictos de email único)
+        invitationRepository.deleteByEmail(dto.getEmail());
+        Invitation invitation = new Invitation();
         invitation.setEmail(dto.getEmail());
         invitation.setTokenHash(tokenHash);
         invitation.setCreatedAt(now);
@@ -98,7 +99,7 @@ public class InvitationServiceImpl implements InvitationService {
 
     @Override
     public Invitation getInviteByEmail(String email) {
-        return (Invitation) invitationRepository.findByEmail(email).orElse(null);
+        return invitationRepository.findByEmail(email).orElse(null);
     }
 
     @Override
