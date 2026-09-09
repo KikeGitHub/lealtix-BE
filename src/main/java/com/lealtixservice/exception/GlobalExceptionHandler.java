@@ -96,6 +96,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<GenericResponse> handleGenericException(Exception ex) {
-        return ResponseEntity.ok(new GenericResponse(500, "Error interno del servidor", new ArrayList<>()));
+        ex.printStackTrace();
+        return ResponseEntity.ok(new GenericResponse(500, "Error interno del servidor: " + ex.getMessage(), new ArrayList<>()));
     }
 }
