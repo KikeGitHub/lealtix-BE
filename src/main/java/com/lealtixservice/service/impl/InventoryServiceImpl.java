@@ -4,6 +4,7 @@ import com.lealtixservice.dto.GenericResponse;
 import com.lealtixservice.entity.Insumo;
 import com.lealtixservice.entity.ProductAdditional;
 import com.lealtixservice.entity.ProductRecipe;
+import com.lealtixservice.entity.ProductSubReceta;
 import com.lealtixservice.entity.RestockHistory;
 import com.lealtixservice.entity.Tenant;
 import com.lealtixservice.entity.TenantMenuCategory;
@@ -12,6 +13,7 @@ import com.lealtixservice.exception.ResourceNotFoundException;
 import com.lealtixservice.repository.InsumoRepository;
 import com.lealtixservice.repository.ProductAdditionalRepository;
 import com.lealtixservice.repository.ProductRecipeRepository;
+import com.lealtixservice.repository.ProductSubRecetaRepository;
 import com.lealtixservice.repository.RestockHistoryRepository;
 import com.lealtixservice.repository.TenantMenuCategoryRepository;
 import com.lealtixservice.repository.TenantMenuProductRepository;
@@ -35,6 +37,7 @@ public class InventoryServiceImpl implements InventoryService {
     private final TenantMenuProductRepository productRepository;
     private final ProductRecipeRepository recipeRepository;
     private final ProductAdditionalRepository additionalRepository;
+    private final ProductSubRecetaRepository subRecetaRepository;
     private final InsumoRepository insumoRepository;
     private final RestockHistoryRepository restockHistoryRepository;
     private final TenantMenuCategoryRepository categoryRepository;
@@ -53,14 +56,18 @@ public class InventoryServiceImpl implements InventoryService {
             item.put("description", p.getDescripcion());
             item.put("categoryId", p.getCategory() != null ? p.getCategory().getId() : null);
             item.put("categoryName", p.getCategory() != null ? p.getCategory().getNombre() : null);
+            item.put("categories", buildCategoryMaps(p.getCategories()));
+            item.put("categoryIds", buildCategoryIds(p.getCategories()));
             item.put("price", p.getPrecio());
             item.put("imageUrl", p.getImgUrl());
             item.put("stock", stock);
             item.put("stockMinimo", min);
             item.put("unidad", p.getUnidad() != null ? p.getUnidad() : "pieza");
             item.put("esPlatillo", dish);
+            item.put("esSubReceta", p.getEsSubReceta() != null && p.getEsSubReceta());
             item.put("insumos", buildInsumosList(p.getId()));
             item.put("adicionales", buildAdicionalesList(p.getId()));
+            item.put("subRecetas", buildSubRecetasList(p.getId()));
             item.put("lowStock", min > 0 && stock <= min);
             item.put("outOfStock", stock <= 0);
             items.add(item);
@@ -71,6 +78,7 @@ public class InventoryServiceImpl implements InventoryService {
     /* ============ Insumos (catálogo compartido) ============ */
 
     @Override
+    @Transactional(readOnly = true)
     public GenericResponse getInsumosByTenant(Long tenantId) {
         List<Insumo> insumos = insumoRepository.findByTenantIdAndIsActiveTrueOrderByNombreAsc(tenantId).stream()
                 .filter(i -> !i.isEsBebida())
@@ -84,7 +92,7 @@ public class InventoryServiceImpl implements InventoryService {
 
     @Override
     @Transactional
-    public GenericResponse createInsumo(Long tenantId, String nombre, String unidad, Double stock, Double stockMinimo) {
+    public GenericResponse createInsumo(Long tenantId, String nombre, String unidad, Double stock, Double stockMinimo, List<Long> categoryIds) {
         if (tenantId == null || nombre == null || nombre.isBlank()) {
             return new GenericResponse(400, "Tenant y nombre son requeridos", null);
         }
@@ -96,19 +104,24 @@ public class InventoryServiceImpl implements InventoryService {
                 .stockMinimo(stockMinimo != null ? stockMinimo : 0.0)
                 .isActive(true)
                 .build();
+        insumo.setCategories(resolveCategories(tenantId, categoryIds));
         insumoRepository.save(insumo);
         return new GenericResponse(200, "Insumo creado", insumoToMap(insumo));
     }
 
     @Override
     @Transactional
-    public GenericResponse updateInsumo(Long insumoId, String nombre, String unidad, Double stock, Double stockMinimo) {
+    public GenericResponse updateInsumo(Long insumoId, String nombre, String unidad, Double stock, Double stockMinimo, List<Long> categoryIds) {
         Insumo insumo = findInsumo(insumoId);
         if (nombre != null && !nombre.isBlank()) insumo.setNombre(nombre.trim());
         if (unidad != null && !unidad.isBlank()) insumo.setUnidad(unidad);
         if (stock != null) insumo.setStock(Math.max(0, stock));
         if (stockMinimo != null) insumo.setStockMinimo(Math.max(0, stockMinimo));
+        if (categoryIds != null) {
+            insumo.setCategories(resolveCategories(insumo.getTenantId(), categoryIds));
+        }
         insumoRepository.save(insumo);
+        syncAvailability(insumo.getTenantId());
         return new GenericResponse(200, "Insumo actualizado", insumoToMap(insumo));
     }
 
@@ -149,26 +162,48 @@ public class InventoryServiceImpl implements InventoryService {
                 .build();
         restockHistoryRepository.save(history);
 
+        syncAvailability(insumo.getTenantId());
+
         return new GenericResponse(200, "Stock del insumo actualizado", insumo.getStock());
     }
 
     /* ============ Bebidas (insumos marcados como bebida, vendibles en Comandix) ============ */
 
     @Override
+    @Transactional(readOnly = true)
     public GenericResponse getBebidasByTenant(Long tenantId) {
         List<Insumo> bebidas = insumoRepository.findByTenantIdAndIsActiveTrueOrderByNombreAsc(tenantId).stream()
                 .filter(Insumo::isEsBebida)
                 .collect(java.util.stream.Collectors.toList());
         List<Map<String, Object>> items = new ArrayList<>();
         for (Insumo b : bebidas) {
-            items.add(insumoToMap(b));
+            Map<String, Object> item = insumoToMap(b);
+            // Bebidas sin categorías asignadas (ej. creadas antes de la multicategoría):
+            // mostrar la categoría del producto de menú enlazado.
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> cats = (List<Map<String, Object>>) item.get("categories");
+            @SuppressWarnings("unchecked")
+            List<Long> ids = (List<Long>) item.get("categoryIds");
+            if ((cats == null || cats.isEmpty()) && b.getProductoId() != null) {
+                productRepository.findById(b.getProductoId()).ifPresent(p -> {
+                    if (p != null && p.getCategory() != null && p.getCategory().getId() != null
+                            && p.getCategory().getNombre() != null) {
+                        Map<String, Object> cm = new LinkedHashMap<>();
+                        cm.put("id", p.getCategory().getId());
+                        cm.put("name", p.getCategory().getNombre());
+                        cats.add(cm);
+                        ids.add(p.getCategory().getId());
+                    }
+                });
+            }
+            items.add(item);
         }
         return new GenericResponse(200, "Bebidas obtenidas", items);
     }
 
     @Override
     @Transactional
-    public GenericResponse createBebida(Long tenantId, String nombre, String unidad, Double stock, Double stockMinimo, Double precioVenta) {
+    public GenericResponse createBebida(Long tenantId, String nombre, String unidad, Double stock, Double stockMinimo, Double precioVenta, List<Long> categoryIds) {
         if (tenantId == null || nombre == null || nombre.isBlank()) {
             return new GenericResponse(400, "Tenant y nombre son requeridos", null);
         }
@@ -182,13 +217,24 @@ public class InventoryServiceImpl implements InventoryService {
                 .precioVenta(precioVenta != null ? BigDecimal.valueOf(precioVenta) : BigDecimal.ZERO)
                 .isActive(true)
                 .build();
+
+        List<TenantMenuCategory> cats = resolveCategories(tenantId, categoryIds);
+        if (cats.isEmpty()) {
+            // Sin categorías asignadas: la bebida pertenece a la categoría "Bebidas".
+            TenantMenuCategory fb = obtenerOCrearCategoriaBebidas(tenantId);
+            cats = new ArrayList<>();
+            cats.add(fb);
+        }
+        insumo.setCategories(new ArrayList<>(cats));
         insumoRepository.save(insumo);
 
-        // Crear el producto de menú enlazado en la categoría "Bebidas" y su receta de 1 unidad,
+        // Crear el producto de menú enlazado y su receta de 1 unidad,
         // para que la bebida aparezca y se venda en el POS Comandix.
-        TenantMenuCategory categoria = obtenerOCrearCategoriaBebidas(tenantId);
+        TenantMenuCategory primaryCat = cats.get(0);
+        List<TenantMenuCategory> productCats = new ArrayList<>(cats);
         TenantMenuProduct product = TenantMenuProduct.builder()
-                .category(categoria)
+                .category(primaryCat)
+                .categories(productCats)
                 .precio(insumo.getPrecioVenta())
                 .nombre(insumo.getNombre())
                 .descripcion("Bebida")
@@ -215,7 +261,7 @@ public class InventoryServiceImpl implements InventoryService {
 
     @Override
     @Transactional
-    public GenericResponse updateBebida(Long insumoId, String nombre, String unidad, Double stock, Double stockMinimo, Double precioVenta) {
+    public GenericResponse updateBebida(Long insumoId, String nombre, String unidad, Double stock, Double stockMinimo, Double precioVenta, List<Long> categoryIds) {
         Insumo insumo = findInsumo(insumoId);
         if (!insumo.isEsBebida()) {
             return new GenericResponse(400, "El insumo no es una bebida", null);
@@ -233,8 +279,22 @@ public class InventoryServiceImpl implements InventoryService {
             product.setNombre(insumo.getNombre());
             product.setPrecio(insumo.getPrecioVenta());
             product.setUnidad(insumo.getUnidad());
+            if (categoryIds != null) {
+                List<TenantMenuCategory> cats = resolveCategories(insumo.getTenantId(), categoryIds);
+                if (cats.isEmpty() && product.getCategory() != null) {
+                    // Sin categorías asignadas: conservar la categoría actual del producto enlazado
+                    cats = new ArrayList<>();
+                    cats.add(product.getCategory());
+                }
+                insumo.setCategories(new ArrayList<>(cats));
+                if (!cats.isEmpty()) {
+                    product.setCategory(cats.get(0));
+                }
+                product.setCategories(new ArrayList<>(cats));
+            }
             productRepository.save(product);
         }
+        syncAvailability(insumo.getTenantId());
         return new GenericResponse(200, "Bebida actualizada", insumoToMap(insumo));
     }
 
@@ -252,6 +312,7 @@ public class InventoryServiceImpl implements InventoryService {
             });
         }
         insumoRepository.delete(insumo);
+        syncAvailability(insumo.getTenantId());
         return new GenericResponse(200, "Bebida eliminada", null);
     }
 
@@ -270,6 +331,21 @@ public class InventoryServiceImpl implements InventoryService {
                 });
     }
 
+    private TenantMenuCategory obtenerOCrearCategoriaPreparaciones(Long tenantId) {
+        return categoryRepository.findByTenantIdAndNombreIgnoreCase(tenantId, "Preparaciones")
+                .orElseGet(() -> {
+                    Integer maxOrder = categoryRepository.findMaxDisplayOrderByTenantId(tenantId);
+                    TenantMenuCategory cat = TenantMenuCategory.builder()
+                            .tenant(Tenant.builder().id(tenantId).build())
+                            .nombre("Preparaciones")
+                            .descripcion("Sub-recetas (preparaciones intermedias)")
+                            .isActive(false)
+                            .displayOrder((maxOrder != null ? maxOrder : 0) + 1)
+                            .build();
+                    return categoryRepository.save(cat);
+                });
+    }
+
     /* ============ Stock directo de producto (sin receta) ============ */
 
     @Override
@@ -280,6 +356,7 @@ public class InventoryServiceImpl implements InventoryService {
         if (stockMinimo != null) product.setStockMinimo(Math.max(0, stockMinimo));
         if (unidad != null && !unidad.isBlank()) product.setUnidad(unidad);
         productRepository.save(product);
+        syncAvailability(productTenantId(product));
         return new GenericResponse(200, "Inventario actualizado", product.getId());
     }
 
@@ -296,6 +373,7 @@ public class InventoryServiceImpl implements InventoryService {
         double current = product.getStock() != null ? product.getStock() : 0.0;
         product.setStock(current + cantidad);
         productRepository.save(product);
+        syncAvailability(productTenantId(product));
         return new GenericResponse(200, "Stock actualizado", product.getStock());
     }
 
@@ -340,6 +418,7 @@ public class InventoryServiceImpl implements InventoryService {
                 .modificable(modificable != null && modificable)
                 .build();
         recipeRepository.save(recipe);
+        syncAvailability(productTenantId(dish));
         return new GenericResponse(200, "Insumo agregado a la receta", recipe.getId());
     }
 
@@ -347,43 +426,22 @@ public class InventoryServiceImpl implements InventoryService {
     @Transactional
     public GenericResponse setRecipes(Long dishId, List<Map<String, Object>> lines) {
         TenantMenuProduct dish = findProduct(dishId);
-        recipeRepository.deleteByDishId(dishId);
-        if (lines == null || lines.isEmpty()) {
-            return new GenericResponse(200, "Receta actualizada (sin insumos)", null);
-        }
-        for (Map<String, Object> line : lines) {
-            Object rawId = line.get("insumoId");
-            Object rawCant = line.get("cantidad");
-            if (rawId == null || rawCant == null) continue;
-            Long insumoId;
-            Double cantidad;
-            try {
-                insumoId = Long.valueOf(rawId.toString());
-                cantidad = Double.valueOf(rawCant.toString());
-            } catch (NumberFormatException e) {
-                continue;
-            }
-            if (cantidad <= 0) continue;
-            Insumo insumo = findInsumo(insumoId);
-            boolean modificable = line.get("modificable") != null && Boolean.parseBoolean(line.get("modificable").toString());
-            ProductRecipe recipe = ProductRecipe.builder()
-                    .dish(dish)
-                    .insumo(insumo)
-                    .cantidad(BigDecimal.valueOf(cantidad))
-                    .modificable(modificable)
-                    .build();
-            recipeRepository.save(recipe);
-        }
-        return new GenericResponse(200, "Receta actualizada", null);
+        int lineas = guardarReceta(dish, lines);
+        syncAvailability(productTenantId(dish));
+        return new GenericResponse(200, "Receta actualizada con " + lineas + " insumo(s)", null);
     }
 
     @Override
     @Transactional
     public GenericResponse removeRecipeIngredient(Long recipeId) {
-        if (!recipeRepository.existsById(recipeId)) {
+        ProductRecipe recipe = recipeRepository.findById(recipeId)
+                .orElse(null);
+        if (recipe == null) {
             return new GenericResponse(404, "Insumo de receta no encontrado", null);
         }
+        Long tenantId = recipe.getDish() != null ? productTenantId(recipe.getDish()) : null;
         recipeRepository.deleteById(recipeId);
+        syncAvailability(tenantId);
         return new GenericResponse(200, "Insumo eliminado de la receta", null);
     }
 
@@ -405,6 +463,7 @@ public class InventoryServiceImpl implements InventoryService {
             recipe.setModificable(modificable);
         }
         recipeRepository.save(recipe);
+        syncAvailability(recipe.getDish() != null ? productTenantId(recipe.getDish()) : null);
         return new GenericResponse(200, "Insumo de receta actualizado", recipe.getId());
     }
 
@@ -481,6 +540,136 @@ public class InventoryServiceImpl implements InventoryService {
         return new GenericResponse(200, "Adicional eliminado", null);
     }
 
+    /* ============ Sub-recetas (preparaciones no vendidas individualmente) ============ */
+
+    @Override
+    @Transactional(readOnly = true)
+    public GenericResponse getSubRecetasByTenant(Long tenantId) {
+        List<TenantMenuProduct> subRecetas = productRepository.findSubRecetasByTenantId(tenantId);
+        List<Map<String, Object>> items = new ArrayList<>();
+        for (TenantMenuProduct s : subRecetas) {
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("id", s.getId());
+            item.put("name", s.getNombre());
+            item.put("descripcion", s.getDescripcion());
+            item.put("categoria", s.getCategory() != null ? s.getCategory().getNombre() : null);
+            item.put("categoryIds", buildCategoryIds(s.getCategories()));
+            item.put("categories", buildCategoryMaps(s.getCategories()));
+            item.put("unidad", s.getUnidad() != null ? s.getUnidad() : "pieza");
+            item.put("insumos", buildInsumosList(s.getId()));
+            items.add(item);
+        }
+        return new GenericResponse(200, "Sub-recetas obtenidas", items);
+    }
+
+    @Override
+    @Transactional
+    public GenericResponse createSubReceta(Long tenantId, String nombre, List<Map<String, Object>> lines, List<Long> categoryIds) {
+        if (tenantId == null || nombre == null || nombre.isBlank()) {
+            return new GenericResponse(400, "Tenant y nombre son requeridos", null);
+        }
+        List<TenantMenuCategory> cats = resolveCategories(tenantId, categoryIds);
+        TenantMenuCategory primaryCat = cats.isEmpty() ? obtenerOCrearCategoriaPreparaciones(tenantId) : cats.get(0);
+        TenantMenuProduct subReceta = TenantMenuProduct.builder()
+                .category(primaryCat)
+                .categories(new ArrayList<>(cats))
+                .precio(BigDecimal.ZERO)
+                .nombre(nombre.trim())
+                .descripcion("Sub-receta (preparación)")
+                .unidad("pieza")
+                .ventaIndividual(false)
+                .esSubReceta(true)
+                .isActive(true)
+                .build();
+        productRepository.save(subReceta);
+
+        int lineas = guardarReceta(subReceta, lines);
+        syncAvailability(productTenantId(subReceta));
+        return new GenericResponse(200, "Sub-receta creada con " + lineas + " insumo(s)", subReceta.getId());
+    }
+
+    @Override
+    @Transactional
+    public GenericResponse updateSubReceta(Long subRecetaId, String nombre, List<Map<String, Object>> lines, List<Long> categoryIds) {
+        TenantMenuProduct subReceta = findSubReceta(subRecetaId);
+        if (nombre != null && !nombre.isBlank()) subReceta.setNombre(nombre.trim());
+        if (categoryIds != null) {
+            List<TenantMenuCategory> cats = resolveCategories(productTenantId(subReceta), categoryIds);
+            if (!cats.isEmpty()) {
+                subReceta.setCategory(cats.get(0));
+            }
+            subReceta.setCategories(new ArrayList<>(cats));
+        }
+        productRepository.save(subReceta);
+        int lineas = guardarReceta(subReceta, lines);
+        syncAvailability(productTenantId(subReceta));
+        return new GenericResponse(200, "Sub-receta actualizada con " + lineas + " insumo(s)", subReceta.getId());
+    }
+
+    @Override
+    @Transactional
+    public GenericResponse deleteSubReceta(Long subRecetaId) {
+        TenantMenuProduct subReceta = findSubReceta(subRecetaId);
+        Long tenantId = productTenantId(subReceta);
+        List<ProductSubReceta> usos = subRecetaRepository.findAll().stream()
+                .filter(s -> s.getSubReceta().getId().equals(subRecetaId))
+                .collect(java.util.stream.Collectors.toList());
+        subRecetaRepository.deleteAll(usos);
+        recipeRepository.deleteByDishId(subRecetaId);
+        productRepository.delete(subReceta);
+        syncAvailability(tenantId);
+        return new GenericResponse(200, "Sub-receta eliminada", null);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public GenericResponse getSubRecetasByDish(Long dishId) {
+        findProduct(dishId);
+        List<Map<String, Object>> items = new ArrayList<>();
+        for (ProductSubReceta s : subRecetaRepository.findByDishId(dishId)) {
+            TenantMenuProduct sr = s.getSubReceta();
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("id", sr.getId());
+            item.put("idAsignacion", s.getId());
+            item.put("name", sr.getNombre());
+            item.put("insumos", buildInsumosList(sr.getId()));
+            items.add(item);
+        }
+        return new GenericResponse(200, "Sub-recetas del producto", items);
+    }
+
+    @Override
+    @Transactional
+    public GenericResponse assignSubReceta(Long dishId, Long subRecetaId) {
+        TenantMenuProduct dish = findProduct(dishId);
+        TenantMenuProduct subReceta = findSubReceta(subRecetaId);
+        if (dish.getId().equals(subRecetaId)) {
+            return new GenericResponse(400, "Un platillo no puede usar su misma sub-receta", null);
+        }
+        if (subRecetaRepository.existsByDishIdAndSubRecetaId(dishId, subRecetaId)) {
+            return new GenericResponse(400, "La sub-receta ya está asignada a este producto", null);
+        }
+        subRecetaRepository.save(ProductSubReceta.builder()
+                .dish(dish)
+                .subReceta(subReceta)
+                .build());
+        syncAvailability(productTenantId(dish));
+        return new GenericResponse(200,
+                "Sub-receta '" + subReceta.getNombre() + "' asignada a '" + dish.getNombre() + "'", null);
+    }
+
+    @Override
+    @Transactional
+    public GenericResponse removeSubRecetaFromDish(Long dishId, Long subRecetaId) {
+        TenantMenuProduct dish = findProduct(dishId);
+        List<ProductSubReceta> usos = subRecetaRepository.findByDishId(dishId).stream()
+                .filter(s -> s.getSubReceta().getId().equals(subRecetaId))
+                .collect(java.util.stream.Collectors.toList());
+        subRecetaRepository.deleteAll(usos);
+        syncAvailability(productTenantId(dish));
+        return new GenericResponse(200, "Sub-receta removida del producto", null);
+    }
+
     /* ============ Descuento al confirmar comanda ============ */
 
     @Override
@@ -490,9 +679,10 @@ public class InventoryServiceImpl implements InventoryService {
         double units = cantidad != null ? cantidad : 1.0;
         List<Map<String, Object>> deducted = new ArrayList<>();
 
-        List<ProductRecipe> recipes = recipeRepository.findByDishId(productId);
+        List<ProductRecipe> recipes = effectiveRecipes(productId);
         if (recipes.isEmpty()) {
             deductProduct(product, units, deducted);
+            syncAvailability(productTenantId(product));
             return new GenericResponse(200, "Stock descontado de " + product.getNombre(), deducted);
         }
 
@@ -516,6 +706,8 @@ public class InventoryServiceImpl implements InventoryService {
             }
         }
 
+        syncAvailability(productTenantId(product));
+
         return new GenericResponse(200,
                 "Stock descontado: " + deducted.size() + " insumo(s) de " + product.getNombre(), deducted);
     }
@@ -529,9 +721,10 @@ public class InventoryServiceImpl implements InventoryService {
         double units = cantidad != null ? cantidad : 1.0;
         List<Map<String, Object>> restored = new ArrayList<>();
 
-        List<ProductRecipe> recipes = recipeRepository.findByDishId(productId);
+        List<ProductRecipe> recipes = effectiveRecipes(productId);
         if (recipes.isEmpty()) {
             restoreProduct(product, units, restored);
+            syncAvailability(productTenantId(product));
             return new GenericResponse(200, "Stock restaurado de " + product.getNombre(), restored);
         }
 
@@ -554,6 +747,8 @@ public class InventoryServiceImpl implements InventoryService {
                 }
             }
         }
+
+        syncAvailability(productTenantId(product));
 
         return new GenericResponse(200,
                 "Stock restaurado: " + restored.size() + " insumo(s) de " + product.getNombre(), restored);
@@ -594,6 +789,62 @@ public class InventoryServiceImpl implements InventoryService {
         return list;
     }
 
+    private List<Map<String, Object>> buildSubRecetasList(Long dishId) {
+        List<Map<String, Object>> list = new ArrayList<>();
+        for (ProductSubReceta s : subRecetaRepository.findByDishId(dishId)) {
+            TenantMenuProduct sr = s.getSubReceta();
+            if (sr == null) continue;
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("id", sr.getId());
+            item.put("idAsignacion", s.getId());
+            item.put("name", sr.getNombre());
+            list.add(item);
+        }
+        return list;
+    }
+
+    /** Receta efectiva de un producto: sus insumos + los insumos de las sub-recetas asignadas. */
+    private List<ProductRecipe> effectiveRecipes(Long productId) {
+        List<ProductRecipe> all = new ArrayList<>(recipeRepository.findByDishId(productId));
+        for (ProductSubReceta s : subRecetaRepository.findByDishId(productId)) {
+            TenantMenuProduct sr = s.getSubReceta();
+            if (sr == null) continue;
+            all.addAll(recipeRepository.findByDishId(sr.getId()));
+        }
+        return all;
+    }
+
+    /** Reemplaza la receta de un producto y devuelve el número de líneas guardadas. */
+    private int guardarReceta(TenantMenuProduct dish, List<Map<String, Object>> lines) {
+        recipeRepository.deleteByDishId(dish.getId());
+        if (lines == null || lines.isEmpty()) return 0;
+        int count = 0;
+        for (Map<String, Object> line : lines) {
+            Object rawId = line.get("insumoId");
+            Object rawCant = line.get("cantidad");
+            if (rawId == null || rawCant == null) continue;
+            Long insumoId;
+            Double cantidad;
+            try {
+                insumoId = Long.valueOf(rawId.toString());
+                cantidad = Double.valueOf(rawCant.toString());
+            } catch (NumberFormatException e) {
+                continue;
+            }
+            if (cantidad <= 0) continue;
+            Insumo insumo = findInsumo(insumoId);
+            boolean modificable = line.get("modificable") != null && Boolean.parseBoolean(line.get("modificable").toString());
+            recipeRepository.save(ProductRecipe.builder()
+                    .dish(dish)
+                    .insumo(insumo)
+                    .cantidad(BigDecimal.valueOf(cantidad))
+                    .modificable(modificable)
+                    .build());
+            count++;
+        }
+        return count;
+    }
+
     private Map<String, Object> insumoToMap(Insumo i) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("id", i.getId());
@@ -604,7 +855,50 @@ public class InventoryServiceImpl implements InventoryService {
         m.put("esBebida", i.isEsBebida());
         m.put("precioVenta", i.getPrecioVenta() != null ? i.getPrecioVenta() : java.math.BigDecimal.ZERO);
         m.put("productoId", i.getProductoId());
+        m.put("categories", buildCategoryMaps(i.getCategories()));
+        m.put("categoryIds", buildCategoryIds(i.getCategories()));
         return m;
+    }
+
+    private List<Map<String, Object>> buildCategoryMaps(List<TenantMenuCategory> cats) {
+        List<Map<String, Object>> list = new ArrayList<>();
+        if (cats != null) {
+            for (TenantMenuCategory c : cats) {
+                if (c == null || c.getId() == null) continue;
+                Map<String, Object> cm = new LinkedHashMap<>();
+                cm.put("id", c.getId());
+                cm.put("name", c.getNombre() != null ? c.getNombre() : "");
+                list.add(cm);
+            }
+        }
+        return list;
+    }
+
+    private List<Long> buildCategoryIds(List<TenantMenuCategory> cats) {
+        List<Long> ids = new ArrayList<>();
+        if (cats != null) {
+            for (TenantMenuCategory c : cats) {
+                if (c != null && c.getId() != null) ids.add(c.getId());
+            }
+        }
+        return ids;
+    }
+
+    /** Resuelve los IDs de categoría a entidades TenantMenuCategory validando que pertenezcan al tenant. */
+    private List<TenantMenuCategory> resolveCategories(Long tenantId, List<Long> categoryIds) {
+        List<TenantMenuCategory> cats = new ArrayList<>();
+        if (categoryIds == null || tenantId == null) return cats;
+        java.util.Set<Long> seen = new java.util.HashSet<>();
+        for (Long cid : categoryIds) {
+            if (cid == null || seen.contains(cid)) continue;
+            categoryRepository.findById(cid).ifPresent(c -> {
+                if (c.getTenant() != null && tenantId.equals(c.getTenant().getId())) {
+                    cats.add(c);
+                    seen.add(cid);
+                }
+            });
+        }
+        return cats;
     }
 
     private boolean isDish(TenantMenuProduct p) {
@@ -616,7 +910,7 @@ public class InventoryServiceImpl implements InventoryService {
         double qty = cantidad != null ? cantidad : 1.0;
         TenantMenuProduct product = productRepository.findById(productId).orElse(null);
         if (product == null) return false;
-        List<ProductRecipe> recipes = recipeRepository.findByDishId(productId);
+        List<ProductRecipe> recipes = effectiveRecipes(productId);
         if (recipes.isEmpty()) {
             return safeStock(product) >= qty;
         }
@@ -631,6 +925,58 @@ public class InventoryServiceImpl implements InventoryService {
         return true;
     }
 
+    @Override
+    public boolean isProductAvailable(TenantMenuProduct product) {
+        if (product == null) return false;
+        List<ProductRecipe> recipes = effectiveRecipes(product.getId());
+        if (recipes.isEmpty()) {
+            return safeStock(product) >= 1.0;
+        }
+        double min = Double.MAX_VALUE;
+        for (ProductRecipe r : recipes) {
+            double qty = r.getCantidad() != null ? r.getCantidad().doubleValue() : 0.0;
+            if (qty <= 0) continue;
+            double insumoStock = r.getInsumo().getStock() != null ? r.getInsumo().getStock() : 0.0;
+            double availableUnits = Math.floor(insumoStock / qty);
+            if (availableUnits < 1.0) return false;
+            min = Math.min(min, availableUnits);
+        }
+        // Receta presente pero sin insumos efectivos -> no puede prepararse
+        return min != Double.MAX_VALUE;
+    }
+
+    @Override
+    @Transactional
+    public int syncProductAvailabilityByTenant(Long tenantId) {
+        if (tenantId == null) return 0;
+        int changes = 0;
+        List<TenantMenuProduct> products = productRepository.findAllByTenantId(tenantId);
+        for (TenantMenuProduct p : products) {
+            Boolean auto = p.getAutoAvailability();
+            boolean autoManaged = auto == null || auto;
+            if (!autoManaged) continue;
+            boolean available = isProductAvailable(p);
+            if (available != p.isActive()) {
+                p.setActive(available);
+                productRepository.save(p);
+                changes++;
+                log.info("[AutoDisponibilidad] Producto '{}' (id={}) {}",
+                        p.getNombre(), p.getId(),
+                        available ? "REACTIVADO (hay insumos)" : "DESACTIVADO (sin insumos suficientes)");
+            }
+        }
+        return changes;
+    }
+
+    /** Sincroniza la disponibilidad de todo el tenant al que pertenece el producto/insumo. */
+    private void syncAvailability(Long tenantId) {
+        if (tenantId == null) return;
+        int changes = syncProductAvailabilityByTenant(tenantId);
+        if (changes > 0) {
+            log.info("[AutoDisponibilidad] Tenant {}: {} producto(s) ajustados", tenantId, changes);
+        }
+    }
+
     private double safeStock(TenantMenuProduct p) {
         return p.getStock() != null ? p.getStock() : 0.0;
     }
@@ -641,7 +987,7 @@ public class InventoryServiceImpl implements InventoryService {
 
     /** stockDe: platillo -> min(floor(stockInsumo / cantidadReceta)); insumo de receta compartido */
     private double stockDe(TenantMenuProduct dish) {
-        List<ProductRecipe> recipes = recipeRepository.findByDishId(dish.getId());
+        List<ProductRecipe> recipes = effectiveRecipes(dish.getId());
         if (recipes.isEmpty()) return 0.0;
         double min = Double.MAX_VALUE;
         for (ProductRecipe r : recipes) {
@@ -656,7 +1002,7 @@ public class InventoryServiceImpl implements InventoryService {
     }
 
     private double stockMinDe(TenantMenuProduct dish) {
-        List<ProductRecipe> recipes = recipeRepository.findByDishId(dish.getId());
+        List<ProductRecipe> recipes = effectiveRecipes(dish.getId());
         if (recipes.isEmpty()) return 0.0;
         double min = Double.MAX_VALUE;
         for (ProductRecipe r : recipes) {
@@ -727,6 +1073,22 @@ public class InventoryServiceImpl implements InventoryService {
     private TenantMenuProduct findProduct(Long productId) {
         return productRepository.findById(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Producto no encontrado con id=" + productId));
+    }
+
+    private TenantMenuProduct findSubReceta(Long subRecetaId) {
+        TenantMenuProduct p = findProduct(subRecetaId);
+        if (p.getEsSubReceta() == null || !p.getEsSubReceta()) {
+            throw new ResourceNotFoundException("Sub-receta no encontrada con id=" + subRecetaId);
+        }
+        return p;
+    }
+
+    /** Tenant del producto a partir de su categoría principal (siempre tiene categoría). */
+    private Long productTenantId(TenantMenuProduct product) {
+        if (product == null || product.getCategory() == null || product.getCategory().getTenant() == null) {
+            return null;
+        }
+        return product.getCategory().getTenant().getId();
     }
 
     private Insumo findInsumo(Long insumoId) {

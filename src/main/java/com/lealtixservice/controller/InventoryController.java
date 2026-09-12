@@ -42,7 +42,8 @@ public class InventoryController {
         String unidad = body.get("unidad") != null ? body.get("unidad").toString() : null;
         Double stock = toDouble(body.get("stock"));
         Double stockMinimo = toDouble(body.get("stockMinimo"));
-        return ResponseEntity.ok(inventoryService.createInsumo(tenantId, nombre, unidad, stock, stockMinimo));
+        List<Long> categoryIds = toLongList(body.get("categoryIds"));
+        return ResponseEntity.ok(inventoryService.createInsumo(tenantId, nombre, unidad, stock, stockMinimo, categoryIds));
     }
 
     @Operation(summary = "Actualizar insumo")
@@ -54,7 +55,8 @@ public class InventoryController {
         String unidad = body.get("unidad") != null ? body.get("unidad").toString() : null;
         Double stock = toDouble(body.get("stock"));
         Double stockMinimo = toDouble(body.get("stockMinimo"));
-        return ResponseEntity.ok(inventoryService.updateInsumo(insumoId, nombre, unidad, stock, stockMinimo));
+        List<Long> categoryIds = toLongList(body.get("categoryIds"));
+        return ResponseEntity.ok(inventoryService.updateInsumo(insumoId, nombre, unidad, stock, stockMinimo, categoryIds));
     }
 
     @Operation(summary = "Eliminar insumo")
@@ -90,7 +92,8 @@ public class InventoryController {
         Double stock = toDouble(body.get("stock"));
         Double stockMinimo = toDouble(body.get("stockMinimo"));
         Double precioVenta = toDouble(body.get("precioVenta"));
-        return ResponseEntity.ok(inventoryService.createBebida(tenantId, nombre, unidad, stock, stockMinimo, precioVenta));
+        List<Long> categoryIds = toLongList(body.get("categoryIds"));
+        return ResponseEntity.ok(inventoryService.createBebida(tenantId, nombre, unidad, stock, stockMinimo, precioVenta, categoryIds));
     }
 
     @Operation(summary = "Actualizar bebida")
@@ -103,7 +106,8 @@ public class InventoryController {
         Double stock = toDouble(body.get("stock"));
         Double stockMinimo = toDouble(body.get("stockMinimo"));
         Double precioVenta = toDouble(body.get("precioVenta"));
-        return ResponseEntity.ok(inventoryService.updateBebida(insumoId, nombre, unidad, stock, stockMinimo, precioVenta));
+        List<Long> categoryIds = toLongList(body.get("categoryIds"));
+        return ResponseEntity.ok(inventoryService.updateBebida(insumoId, nombre, unidad, stock, stockMinimo, precioVenta, categoryIds));
     }
 
     @Operation(summary = "Eliminar bebida")
@@ -212,6 +216,65 @@ public class InventoryController {
     @DeleteMapping("/additionals/{additionalId}")
     public ResponseEntity<GenericResponse> removeAdditional(@PathVariable Long additionalId) {
         return ResponseEntity.ok(inventoryService.removeAdditional(additionalId));
+    }
+
+    /* ============ Sub-recetas (preparaciones no vendidas individualmente) ============ */
+
+    @Operation(summary = "Obtener sub-recetas de un tenant (con sus insumos)")
+    @GetMapping("/sub-recetas/tenant/{tenantId}")
+    public ResponseEntity<GenericResponse> getSubRecetas(@PathVariable Long tenantId) {
+        return ResponseEntity.ok(inventoryService.getSubRecetasByTenant(tenantId));
+    }
+
+    @Operation(summary = "Crear sub-receta (producto esSubReceta con sus insumos)")
+    @PostMapping("/sub-recetas")
+    public ResponseEntity<GenericResponse> createSubReceta(@RequestBody Map<String, Object> body) {
+        Long tenantId = toLong(body.get("tenantId"));
+        String nombre = body.get("nombre") != null ? body.get("nombre").toString() : null;
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> lines = (List<Map<String, Object>>) body.getOrDefault("lines", new java.util.ArrayList<>());
+        List<Long> categoryIds = toLongList(body.get("categoryIds"));
+        return ResponseEntity.ok(inventoryService.createSubReceta(tenantId, nombre, lines, categoryIds));
+    }
+
+    @Operation(summary = "Actualizar sub-receta")
+    @PutMapping("/sub-recetas/{subRecetaId}")
+    public ResponseEntity<GenericResponse> updateSubReceta(
+            @PathVariable Long subRecetaId,
+            @RequestBody Map<String, Object> body) {
+        String nombre = body.get("nombre") != null ? body.get("nombre").toString() : null;
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> lines = (List<Map<String, Object>>) body.getOrDefault("lines", new java.util.ArrayList<>());
+        List<Long> categoryIds = toLongList(body.get("categoryIds"));
+        return ResponseEntity.ok(inventoryService.updateSubReceta(subRecetaId, nombre, lines, categoryIds));
+    }
+
+    @Operation(summary = "Eliminar sub-receta")
+    @DeleteMapping("/sub-recetas/{subRecetaId}")
+    public ResponseEntity<GenericResponse> deleteSubReceta(@PathVariable Long subRecetaId) {
+        return ResponseEntity.ok(inventoryService.deleteSubReceta(subRecetaId));
+    }
+
+    @Operation(summary = "Obtener sub-recetas asignadas a un platillo o bebida")
+    @GetMapping("/dish/{dishId}/sub-recetas")
+    public ResponseEntity<GenericResponse> getSubRecetasByDish(@PathVariable Long dishId) {
+        return ResponseEntity.ok(inventoryService.getSubRecetasByDish(dishId));
+    }
+
+    @Operation(summary = "Asignar una sub-receta a un platillo o bebida")
+    @PostMapping("/dish/{dishId}/sub-recetas/{subRecetaId}")
+    public ResponseEntity<GenericResponse> assignSubReceta(
+            @PathVariable Long dishId,
+            @PathVariable Long subRecetaId) {
+        return ResponseEntity.ok(inventoryService.assignSubReceta(dishId, subRecetaId));
+    }
+
+    @Operation(summary = "Quitar una sub-receta de un platillo o bebida")
+    @DeleteMapping("/dish/{dishId}/sub-recetas/{subRecetaId}")
+    public ResponseEntity<GenericResponse> removeSubRecetaFromDish(
+            @PathVariable Long dishId,
+            @PathVariable Long subRecetaId) {
+        return ResponseEntity.ok(inventoryService.removeSubRecetaFromDish(dishId, subRecetaId));
     }
 
     /* ============ Descuento de comanda ============ */
